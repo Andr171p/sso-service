@@ -1,0 +1,26 @@
+[project]
+name = "tyuiuappregistry"
+version = "0.1.0"
+description = "Add your description here"
+requires-python = ">=3.13"
+dependencies = [
+    "aiosqlite>=0.21.0",
+    "alembic>=1.16.4",
+    "asyncpg>=0.30.0",
+    "cryptography>=45.0.5",
+    "dishka>=1.6.0",
+    "fastapi[all]>=0.116.1",
+    "mypy>=1.17.0",
+    "pyjwt>=2.10.1",
+    "sqlalchemy>=2.0.42",
+]
+
+# -- MyPy --
+[tool.mypy]
+ignore_missing_imports = true
+exclude = [
+    "migration",
+    "migrations",
+    "__samples__",
+    ".venv"
+]
