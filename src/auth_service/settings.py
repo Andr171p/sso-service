@@ -22,6 +22,19 @@ class JWTSettings(BaseSettings):
     secret_key: str = ""
     algorithm: str = "HS256"
 
+    model_config = SettingsConfigDict(env_prefix="JWT_")
+
+
+class RedisSettings(BaseSettings):
+    host: str = "localhost"
+    port: int = 6379
+
+    model_config = SettingsConfigDict(env_prefix="REDIS_")
+
+    @property
+    def url(self) -> str:
+        return f"redis://{self.host}:{self.port}/0"
+
 
 class SQLiteSettings(BaseModel):
     driver: str = "aiosqlite"
@@ -51,6 +64,7 @@ class Settings(BaseSettings):
     sqlite: SQLiteSettings = SQLiteSettings()
     postgres: PostgresSettings = PostgresSettings()
     jwt: JWTSettings = JWTSettings()
+    redis: RedisSettings = RedisSettings()
 
 
 settings = Settings()
