@@ -55,6 +55,8 @@ def decode_token(token: str) -> dict[str, Any]:
         return jwt.decode(
             token,
             key=settings.jwt.secret_key,
-            algorithms=[settings.jwt.algorithm],)
+            algorithms=[settings.jwt.algorithm],
+            options={"verify_aud": False}
+        )
     except jwt.PyJWTError:
         raise InvalidTokenError("Invalid token")

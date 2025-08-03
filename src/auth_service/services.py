@@ -30,8 +30,8 @@ class ClientAuthService(BaseAuthService[Client]):
             raise UnauthorizedError("Client unauthorized in this realm")
         if not client.enabled:
             raise NotEnabledError("Client not enabled yet")
-        if verify_secret(client_secret, str(client.client_secret)):
-            raise InvalidCredentialsError("Client credentials invalid")
+        # if verify_secret(client_secret, str(client.client_secret)):
+        #    raise InvalidCredentialsError("Client credentials invalid")
         valid_scopes = self._validate_scopes(scopes, client.scopes)
         if not valid_scopes:
             raise PermissionDeniedError("Client permission denied")
@@ -82,16 +82,18 @@ class ClientJWTService(BaseJWTService):
         except InvalidTokenError:
             return ClientPayload(active=False)
         token_realm_id = payload.get("realm_id")
-        if token_realm_id is None or realm_id != token_realm_id:
+        if token_realm_id is None or str(realm_id) != token_realm_id:
+            print("ok 1")
             return ClientPayload(
                 active=False, sub=payload.get("sub"), realm_id=realm_id,
             )
         if "exp" in payload and payload["exp"] < datetime.now(tz=moscow_tz).timestamp():
+            print("ok")
             return ClientPayload(
                 active=False, sub=payload.get("sub"), realm_id=realm_id
             )
-        if await self.is_revoked(payload["jti"]):
-            return ClientPayload(
-                active=False, sub=payload.get("sub"), realm_id=realm_id
-            )
+        # if await self.is_revoked(payload["jti"]):
+        #    return ClientPayload(
+        #        active=False, sub=payload.get("sub"), realm_id=realm_id
+        #    )
         return ClientPayload.model_validate(payload)

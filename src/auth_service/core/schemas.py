@@ -24,7 +24,7 @@ from .constants import (
     ISSUER,
 )
 from .enums import ClientType, GrantType, TokenType
-from .utils import current_time, current_timestamp, validate_scopes
+from .utils import current_time, current_timestamp, validate_scopes, format_scope
 
 
 def generate_secret() -> str:
@@ -77,7 +77,7 @@ class Client(BaseModel):
             "iss": ISSUER,
             "sub": self.client_id,
             "aud": str(self.id),
-            "realm_id": str(self .realm_id),
+            "realm_id": str(self.realm_id),
             "scope": " ".join(self.scopes)
         }
 
@@ -135,14 +135,18 @@ class Token(BaseModel):
 class Payload(BaseModel):
     """Декодированная полезная нагрузка токена"""
     active: bool = True
-    scope: list[str] | None = None
+    scope: str | None = None
     iss: str | None = None
     sub: str | None = None
     aud: UUID | None = None
-    exp: int | None = None
-    iat: int | None = None
+    exp: float | None = None
+    iat: float | None = None
 
     model_config = ConfigDict(from_attributes=True)
+
+    @field_validator("scope")
+    def validate_scope(cls, scope: str) -> list[str]:
+        return format_scope(scope)
 
 
 class ClientPayload(Payload):

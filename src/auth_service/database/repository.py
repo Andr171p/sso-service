@@ -1,6 +1,5 @@
 from typing import TypeVar
 
-from datetime import datetime
 from uuid import UUID
 
 from pydantic import BaseModel
@@ -8,7 +7,7 @@ from sqlalchemy import delete, insert, select, update
 from sqlalchemy.exc import IntegrityError, SQLAlchemyError
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from ..core.schemas import Client, Realm, Token
+from ..core.schemas import Client, Realm
 from ..core.exceptions import (
     AlreadyCreatedError,
     CreationError,
@@ -17,7 +16,7 @@ from ..core.exceptions import (
     UpdateError,
 )
 from .base import Base
-from .models import ClientModel, RealmModel, TokenModel
+from .models import ClientModel, RealmModel
 
 Model = TypeVar("Model", bound=Base)
 Schema = TypeVar("Schema", bound=BaseModel)
@@ -130,28 +129,6 @@ class ClientRepository(CRUDRepository[ClientModel, Client]):
                 .where(
                     (self.model.realm_id == realm_id) &
                     (self.model.client_id == client_id)
-                )
-            )
-            result = await self.session.execute(stmt)
-            model = result.scalar_one_or_none()
-            return self.schema.model_validate(model) if model else None
-        except SQLAlchemyError as e:
-            await self.session.rollback()
-            raise ReadingError(f"Error while reading: {e}") from e
-
-
-class TokenRepository(CRUDRepository[TokenModel, Token]):
-    model = TokenModel
-    schema = Token
-
-    async def get_valid(self, token: str) -> Token | None:
-        try:
-            stmt = (
-                select(TokenModel)
-                .where(
-                    (self.model.token == token) &
-                    (self.model.is_active is True) &
-                    (self.model.expires_at > datetime.now())
                 )
             )
             result = await self.session.execute(stmt)
