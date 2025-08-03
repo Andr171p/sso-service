@@ -12,3 +12,8 @@ class GrantType(StrEnum):
     AUTHORIZATION_CODE = "authorization_code"  # Web-приложения
     CLIENT_CREDENTIALS = "client_credentials"  # Сервис-сервис
     REFRESH_TOKEN = "refresh_token"
+
+
+class TokenType(StrEnum):
+    ACCESS = "access"
+    REFRESH = "refresh"

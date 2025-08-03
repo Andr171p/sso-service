@@ -20,3 +20,28 @@ class UpdateError(_RepositoryError):
 
 class DeletionError(_RepositoryError):
     """Ошибка удаления данных"""
+
+
+class _AuthenticationError(Exception):
+    """Базовая ошибка аутентификации"""
+
+
+class InvalidCredentialsError(_AuthenticationError):
+    """Не валидные авторизационные данные"""
+
+
+class UnauthorizedError(_AuthenticationError):
+    """Ошибка несанкционированного доступа"""
+
+
+class NotEnabledError(_AuthenticationError):
+    """Запрашиваемый ресурс пока не доступен"""
+
+
+class PermissionDeniedError(_AuthenticationError):
+    """Ошибка прав доступа"""
+
+
+class InvalidTokenError(_AuthenticationError):
+    """Инвалидный токен"""
+

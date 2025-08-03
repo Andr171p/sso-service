@@ -1,7 +1,7 @@
 from datetime import datetime
 from uuid import UUID
 
-from sqlalchemy import ARRAY, String, DateTime, ForeignKey, UniqueConstraint, Text
+from sqlalchemy import ARRAY, DateTime, ForeignKey, String, Text, UniqueConstraint
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from .base import Base
@@ -10,7 +10,7 @@ from .base import Base
 class RealmModel(Base):
     __tablename__ = "realms"
 
-    name: Mapped[str]
+    name: Mapped[str] = mapped_column(primary_key=True)
     description: Mapped[str | None] = mapped_column(Text, nullable=True)
     enabled: Mapped[bool]
 
@@ -20,7 +20,9 @@ class RealmModel(Base):
 class ClientModel(Base):
     __tablename__ = "clients"
 
-    realm_id: Mapped[UUID] = mapped_column(ForeignKey("realms.id"), unique=False, nullable=False)
+    realm_id: Mapped[UUID] = mapped_column(
+        ForeignKey("realms.id"), unique=False, nullable=False
+    )
     client_id: Mapped[str] = mapped_column(unique=True)
     client_secret: Mapped[str]
     expires_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
@@ -36,3 +38,12 @@ class ClientModel(Base):
     realm: Mapped["RealmModel"] = relationship(back_populates="clients")
 
     __table_args__ = (UniqueConstraint("realm_id", "client_id", name="id_uq"),)
+
+
+class TokenModel(Base):
+    __tablename__ = "tokens"
+
+    type: Mapped[str]
+    token: Mapped[str] = mapped_column(String(512), unique=True)
+    expires_at: Mapped[datetime] = mapped_column(DateTime)
+    is_active: Mapped[bool]

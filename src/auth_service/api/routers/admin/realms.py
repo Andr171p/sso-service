@@ -40,9 +40,9 @@ async def create_realm(realm_create: RealmCreate, repository: Depends[RealmRepos
         ) from None
     except CreationError:
         logger.exception("Error occurred: {e}")
-        raise HTTPException(  # noqa: B904
+        raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="CREATION_ERROR"
-        )
+        ) from None
 
 
 @realms_router.get(
@@ -70,7 +70,7 @@ async def get_realms(
     path="/{id}",
     status_code=status.HTTP_200_OK,
     response_model=Realm,
-    summary="Получает область по её id"
+    summary="Получает область по её уникальному имени"
 )
 async def get_realm(id: UUID, repository: Depends[RealmRepository]) -> Realm:
     try:

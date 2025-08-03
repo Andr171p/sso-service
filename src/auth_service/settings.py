@@ -1,15 +1,26 @@
 from typing import Literal
 
 from pathlib import Path
+import pytz
 
 from dotenv import load_dotenv
 from pydantic import BaseModel
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
+# Корневая директория проекта
 BASE_DIR = Path(__file__).resolve().parent.parent.parent
+# Секретные переменные
 ENV_PATH = BASE_DIR / ".env"
+# Временная зона
+TIMEZONE = "Europe/Moscow"
+moscow_tz = pytz.timezone(TIMEZONE)
 
 load_dotenv(ENV_PATH)
+
+
+class JWTSettings(BaseSettings):
+    secret_key: str = ""
+    algorithm: str = "HS256"
 
 
 class SQLiteSettings(BaseModel):
@@ -39,6 +50,7 @@ class PostgresSettings(BaseSettings):
 class Settings(BaseSettings):
     sqlite: SQLiteSettings = SQLiteSettings()
     postgres: PostgresSettings = PostgresSettings()
+    jwt: JWTSettings = JWTSettings()
 
 
 settings = Settings()

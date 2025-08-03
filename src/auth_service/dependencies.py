@@ -5,6 +5,7 @@ from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 from .database.base import create_sessionmaker
 from .database.repository import ClientRepository, RealmRepository
+from .services import ClientAuthService
 from .settings import Settings, settings
 
 
@@ -31,6 +32,10 @@ class AppProvider(Provider):
     @provide(scope=Scope.REQUEST)
     def get_client_repository(self, session: AsyncSession) -> ClientRepository:  # noqa: PLR6301
         return ClientRepository(session)
+
+    @provide(scope=Scope.REQUEST)
+    def get_client_auth_service(self, repository: ClientRepository) -> ClientAuthService:
+        return ClientAuthService(repository)
 
 
 container = make_async_container(AppProvider(), context={Settings: settings})
