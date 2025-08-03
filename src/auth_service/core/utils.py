@@ -15,3 +15,8 @@ def format_scope(scope: str) -> list[str]:
 def current_time() -> datetime:
     from ..settings import moscow_tz
     return datetime.now(tz=moscow_tz)
+
+
+def current_timestamp() -> float:
+    from ..settings import moscow_tz
+    return datetime.now(tz=moscow_tz).timestamp()

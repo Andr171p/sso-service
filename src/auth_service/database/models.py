@@ -1,9 +1,19 @@
 from datetime import datetime
 from uuid import UUID
 
-from sqlalchemy import ARRAY, DateTime, ForeignKey, String, Text, UniqueConstraint
-from sqlalchemy.orm import Mapped, mapped_column, relationship
+from sqlalchemy import (
+    ARRAY,
+    Connection,
+    DateTime,
+    ForeignKey,
+    String,
+    Text,
+    UniqueConstraint,
+    event,
+)
+from sqlalchemy.orm import Mapped, Mapper, mapped_column, relationship
 
+from ..security import hash_secret
 from .base import Base
 
 
@@ -40,10 +50,9 @@ class ClientModel(Base):
     __table_args__ = (UniqueConstraint("realm_id", "client_id", name="id_uq"),)
 
 
-class TokenModel(Base):
-    __tablename__ = "tokens"
-
-    type: Mapped[str]
-    token: Mapped[str] = mapped_column(String(512), unique=True)
-    expires_at: Mapped[datetime] = mapped_column(DateTime)
-    is_active: Mapped[bool]
+@event.listens_for(ClientModel, "before_insert")
+def hash_client_secret_before_insert(
+        mapper: Mapper, connection: Connection, target: ClientModel
+) -> None:
+    if target.client_secret:
+        target.client_secret = hash_secret(target.client_secret)

@@ -24,8 +24,7 @@ from .constants import (
     ISSUER,
 )
 from .enums import ClientType, GrantType, TokenType
-from .utils import validate_scopes
-from ..settings import moscow_tz
+from .utils import current_time, current_timestamp, validate_scopes
 
 
 def generate_secret() -> str:
@@ -44,7 +43,7 @@ class Realm(BaseModel):
     name: str
     description: str | None = None
     enabled: bool = True
-    created_at: datetime = Field(default_factory=datetime.now)
+    created_at: datetime = Field(default_factory=current_time)
 
     model_config = ConfigDict(from_attributes=True)
 
@@ -68,7 +67,7 @@ class Client(BaseModel):
     )
     scopes: list[str] = Field(default_factory=list, description="Области видимости, права")
     already_seen_secret: bool = False
-    created_at: datetime = Field(default_factory=datetime.now)
+    created_at: datetime = Field(default_factory=current_time)
 
     model_config = ConfigDict(from_attributes=True)
 
@@ -91,11 +90,6 @@ class Client(BaseModel):
             raise ValueError("Public clients cannot use client_credentials")
         return self
 
-    @field_validator("client_secret")
-    def hash_client_secret(cls, client_secret: str) -> str:
-        from ..security import hash_secret
-        return hash_secret(client_secret)
-
     @field_validator("scopes")
     def validate_scopes(cls, scopes: list[str]) -> list[str]:
         return validate_scopes(scopes)
@@ -115,15 +109,13 @@ class Token(BaseModel):
     type: TokenType
     token: str
     expires_at: float
-    created_at: float = Field(
-        default_factory=lambda: datetime.now(tz=moscow_tz).timestamp()
-    )
+    created_at: float = Field(default_factory=current_timestamp)
 
     model_config = ConfigDict(from_attributes=True)
 
     @property
     def is_expired(self) -> bool:
-        return datetime.now(tz=moscow_tz).timestamp() > self.expires_at
+        return current_timestamp() > self.expires_at
 
     @field_validator("token", mode="before")
     def hash_token(cls, token: str) -> str:
