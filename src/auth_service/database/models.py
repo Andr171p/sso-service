@@ -3,17 +3,14 @@ from uuid import UUID
 
 from sqlalchemy import (
     ARRAY,
-    Connection,
     DateTime,
     ForeignKey,
     String,
     Text,
-    UniqueConstraint,
-    event,
+    UniqueConstraint
 )
-from sqlalchemy.orm import Mapped, Mapper, mapped_column, relationship
+from sqlalchemy.orm import Mapped, mapped_column, relationship
 
-from ..security import hash_secret
 from .base import Base
 
 
@@ -34,9 +31,9 @@ class ClientModel(Base):
         ForeignKey("realms.id"), unique=False, nullable=False
     )
     client_id: Mapped[str] = mapped_column(unique=True)
-    client_secret: Mapped[str]
+    client_secret: Mapped[str] = mapped_column(unique=True)
     expires_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
-    name: Mapped[str]
+    name: Mapped[str] = mapped_column(unique=True)
     description: Mapped[str | None] = mapped_column(Text, nullable=True)
     enabled: Mapped[bool]
     client_type: Mapped[str]
@@ -48,11 +45,3 @@ class ClientModel(Base):
     realm: Mapped["RealmModel"] = relationship(back_populates="clients")
 
     __table_args__ = (UniqueConstraint("realm_id", "client_id", name="id_uq"),)
-
-
-@event.listens_for(ClientModel, "before_insert")
-def hash_client_secret_before_insert(
-        mapper: Mapper, connection: Connection, target: ClientModel
-) -> None:
-    if target.client_secret:
-        target.client_secret = hash_secret(target.client_secret)

@@ -13,6 +13,7 @@ from src.auth_service.core.exceptions import (
 )
 from src.auth_service.core.schemas import Client, ClientCredentials
 from src.auth_service.database.repository import ClientRepository
+from src.auth_service.security import hash_secret
 from ...schemas import ClientCreate, ClientUpdate, CreatedClient
 
 logger = logging.getLogger(__name__)
@@ -32,6 +33,7 @@ async def create_client(
     try:
         data = client_create.model_dump()
         data["realm_id"] = realm_id
+        data["client_secret"] = hash_secret(data["client_secret"])
         client = await repository.create(Client.model_validate(data))
         return CreatedClient.model_validate(client)
     except CreationError:
@@ -43,16 +45,16 @@ async def create_client(
 
 
 @clients_router.get(
-    path="/realms/{realm_id}/clients/{client_id}",
+    path="/clients/{id}",
     status_code=status.HTTP_200_OK,
     response_model=CreatedClient,
     summary="Получает клиента из заданной области"
 )
 async def get_client(
-        realm_id: UUID, client_id: str, repository: Depends[ClientRepository]
+        id: UUID, repository: Depends[ClientRepository]
 ) -> CreatedClient:
     try:
-        client = await repository.get_by_client_id(realm_id, client_id)
+        client = await repository.read(id)
         if not client:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND, detail="Client not found"

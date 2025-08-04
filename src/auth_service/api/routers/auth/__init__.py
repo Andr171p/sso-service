@@ -2,7 +2,7 @@ __all__ = ("auth_router",)
 
 from fastapi import APIRouter
 
-from .realms import realms_router
+from .clients import realms_router
 
 auth_router = APIRouter(prefix="/auth", tags=["Auth"])
 

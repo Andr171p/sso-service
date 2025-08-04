@@ -1,7 +1,7 @@
 from datetime import datetime
 from uuid import UUID
 
-from .core.base import BaseAuthService, BaseJWTService
+from .core.base import BaseAuthService
 from .core.exceptions import (
     InvalidCredentialsError,
     InvalidTokenError,
@@ -9,12 +9,11 @@ from .core.exceptions import (
     PermissionDeniedError,
     UnauthorizedError,
 )
-from .core.schemas import Client, ClientPayload
+from .core.schemas import Client, ClientPayload, UserPayload
 from .core.utils import format_scope
 from .database.repository import ClientRepository
 from .security import decode_token, verify_secret
 from .settings import moscow_tz
-from .storage import RedisTokenStore
 
 
 class ClientAuthService(BaseAuthService[Client]):
@@ -30,8 +29,8 @@ class ClientAuthService(BaseAuthService[Client]):
             raise UnauthorizedError("Client unauthorized in this realm")
         if not client.enabled:
             raise NotEnabledError("Client not enabled yet")
-        # if verify_secret(client_secret, str(client.client_secret)):
-        #    raise InvalidCredentialsError("Client credentials invalid")
+        if verify_secret(client_secret, str(client.client_secret)):
+            raise InvalidCredentialsError("Client credentials invalid")
         valid_scopes = self._validate_scopes(scopes, client.scopes)
         if not valid_scopes:
             raise PermissionDeniedError("Client permission denied")
@@ -59,39 +58,23 @@ class ClientAuthService(BaseAuthService[Client]):
         return valid_scopes or None
 
 
-class ClientJWTService(BaseJWTService):
-    def __init__(self, token_store: RedisTokenStore) -> None:
-        self.token_store = token_store
-
-    async def is_revoked(self, jti: str) -> bool:
-        token = await self.token_store.get(jti)
-        return bool(token)
-
-    async def revoke(self, token: str, **kwargs) -> bool:
-        realm_id: UUID = kwargs.get("realm_id")
+def validate_client_token(token: str, realm_id: UUID) -> ClientPayload:
+    """Скрывает ошибки согласно RFC 7662, при ошибках поле active=false"""
+    try:
         payload = decode_token(token)
-        if payload.get("realm_id") is None or realm_id != payload["realm_id"]:
-            return False
-        return await self.token_store.delete(payload["jti"])
+    except InvalidTokenError:
+        return ClientPayload(active=False)
+    token_realm_id = payload.get("realm_id")
+    if token_realm_id is None or str(realm_id) != token_realm_id:
+        return ClientPayload(
+            active=False, sub=payload.get("sub"), realm_id=realm_id,
+        )
+    if "exp" in payload and payload["exp"] < datetime.now(tz=moscow_tz).timestamp():
+        return ClientPayload(
+            active=False, sub=payload.get("sub"), realm_id=realm_id
+        )
+    return ClientPayload.model_validate(payload)
 
-    async def validate(self, token: str, **kwargs) -> ClientPayload:
-        """Скрывает ошибки согласно RFC 7662, при ошибках поле active=false"""
-        realm_id: UUID = kwargs.get("realm_id")
-        try:
-            payload = decode_token(token)
-        except InvalidTokenError:
-            return ClientPayload(active=False)
-        token_realm_id = payload.get("realm_id")
-        if token_realm_id is None or str(realm_id) != token_realm_id:
-            return ClientPayload(
-                active=False, sub=payload.get("sub"), realm_id=realm_id,
-            )
-        if "exp" in payload and payload["exp"] < datetime.now(tz=moscow_tz).timestamp():
-            return ClientPayload(
-                active=False, sub=payload.get("sub"), realm_id=realm_id
-            )
-        # if await self.is_revoked(payload["jti"]):
-        #    return ClientPayload(
-        #        active=False, sub=payload.get("sub"), realm_id=realm_id
-        #    )
-        return ClientPayload.model_validate(payload)
+
+def validate_user_token(token: str) -> UserPayload:
+    ...

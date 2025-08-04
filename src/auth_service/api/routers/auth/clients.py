@@ -7,7 +7,7 @@ from dishka.integrations.fastapi import DishkaRoute
 from dishka.integrations.fastapi import FromDishka as Depends
 from fastapi import APIRouter, Form, HTTPException, status
 
-from src.auth_service.core.constants import CLIENT_ACCESS_TOKEN_EXPIRE
+from src.auth_service.core.constants import CLIENT_ACCESS_TOKEN_EXPIRE_IN
 from src.auth_service.core.enums import GrantType, TokenType
 from src.auth_service.core.exceptions import (
     InvalidCredentialsError,
@@ -17,17 +17,17 @@ from src.auth_service.core.exceptions import (
 )
 from src.auth_service.core.schemas import ClientPayload
 from src.auth_service.security import create_token
-from src.auth_service.services import ClientAuthService, ClientJWTService
+from src.auth_service.services import ClientAuthService, validate_client_token
 
 from ...schemas import ClientToken
 
 logger = logging.getLogger(__name__)
 
-realms_router = APIRouter(prefix="/realms", tags=["Auth"], route_class=DishkaRoute)
+clients_router = APIRouter(prefix="/realms", tags=["Auth"], route_class=DishkaRoute)
 
 
-@realms_router.post(
-    path="/{realm_id}/token",
+@clients_router.post(
+    path="/{realm_id}/clients/token",
     status_code=status.HTTP_200_OK,
     response_model=ClientToken,
     summary="Выдаёт токен клиенту",
@@ -62,21 +62,19 @@ async def get_token(
     access_token = create_token(
         payload=client.payload,
         token_type=TokenType.ACCESS,
-        expires_delta=CLIENT_ACCESS_TOKEN_EXPIRE,
+        expires_delta=CLIENT_ACCESS_TOKEN_EXPIRE_IN,
     )
     return ClientToken(access_token=access_token)
 
 
-@realms_router.post(
-    path="/{realm_id}/introspect",
+@clients_router.post(
+    path="/{realm_id}/clients/introspect",
     status_code=status.HTTP_200_OK,
     response_model=ClientPayload,
     response_model_exclude_none=True,
     summary="Производит валидацию токена",
 )
 async def introspect_token(
-        realm_id: UUID,
-        token: Annotated[str, Form(...)],
-        service: Depends[ClientJWTService]
+        realm_id: UUID, token: Annotated[str, Form(...)],
 ) -> ClientPayload:
-    return await service.validate(token, realm_id=realm_id)
+    return await validate_client_token(token, realm_id)

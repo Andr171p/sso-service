@@ -2,40 +2,23 @@ from __future__ import annotations
 
 from typing import Any
 
-import secrets
-import string
 from datetime import datetime
 from uuid import UUID, uuid4
 
 from pydantic import (
     BaseModel,
     ConfigDict,
+    EmailStr,
     Field,
     HttpUrl,
     SecretStr,
     field_validator,
-    model_validator,
+    model_validator
 )
 
-from .constants import (
-    BYTES_COUNT,
-    MAX_NAME_LENGTH,
-    MIN_GRANT_TYPES_COUNT,
-    ISSUER,
-)
-from .enums import ClientType, GrantType, TokenType
-from .utils import current_time, current_timestamp, validate_scopes, format_scope
-
-
-def generate_secret() -> str:
-    """Генерирует произвольный секретный код"""
-    return secrets.token_urlsafe(BYTES_COUNT)
-
-
-def generate_public_id() -> str:
-    """Генерирует произвольный публичный id"""
-    alphabet = string.ascii_letters + string.digits
-    return "".join(secrets.choice(alphabet) for _ in range(BYTES_COUNT))
+from .constants import MAX_NAME_LENGTH, MIN_GRANT_TYPES_COUNT, ISSUER
+from .enums import ClientType, GrantType
+from .utils import current_time, validate_scopes, format_scope, generate_id, generate_secret
 
 
 class Realm(BaseModel):
@@ -52,7 +35,7 @@ class Client(BaseModel):
     id: UUID = Field(default_factory=uuid4)
     realm_id: UUID
     client_id: str = Field(
-        default_factory=generate_public_id, description="Публичный идентификатор клиента",
+        default_factory=generate_id, description="Публичный идентификатор клиента",
     )
     client_secret: SecretStr = Field(
         default_factory=generate_secret, description="Секретный ключ"
@@ -104,38 +87,17 @@ class ClientCredentials(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
 
-class Token(BaseModel):
-    jti: str
-    type: TokenType
-    token: str
-    expires_at: float
-    created_at: float = Field(default_factory=current_timestamp)
-
-    model_config = ConfigDict(from_attributes=True)
-
-    @property
-    def is_expired(self) -> bool:
-        return current_timestamp() > self.expires_at
-
-    @field_validator("token", mode="before")
-    def hash_token(cls, token: str) -> str:
-        from ..security import hash_secret
-        return hash_secret(token)
-
-    @classmethod
-    def from_payload(cls, token: str, payload: dict[str, Any]) -> Token:
-        return cls(
-            jti=payload["jti"],
-            type=payload["type"],
-            token=token,
-            expires_at=payload["exp"]
-        )
+class Session(BaseModel):
+    """Пользовательская сессия"""
+    session_id: UUID = Field(default_factory=uuid4)
+    user_id: UUID
+    expires_at: int | float
+    ip_address: str
 
 
 class Payload(BaseModel):
     """Декодированная полезная нагрузка токена"""
     active: bool = True
-    scope: str | None = None
     iss: str | None = None
     sub: str | None = None
     aud: UUID | None = None
@@ -151,4 +113,10 @@ class Payload(BaseModel):
 
 class ClientPayload(Payload):
     """Полезная нагрузка токена клиента после валидации и декодирования"""
+    scope: str | None = None
     realm_id: UUID | None = None
+
+
+class UserPayload(Payload):
+    realm_id: UUID | None = None
+    ...

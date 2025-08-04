@@ -1,6 +1,7 @@
-from typing import Any, Generic, TypeVar
+from typing import Generic, TypeVar
 
-from abc import ABC, abstractmethod
+from abc import abstractmethod
+from uuid import UUID
 
 from pydantic import BaseModel
 
@@ -26,18 +27,12 @@ class BaseAuthService(Generic[T]):
         raise NotImplementedError
 
 
-class BaseJWTService(ABC):
-    @abstractmethod
-    async def is_revoked(self, jti: str) -> bool:
-        """Проверяет отозван ли токен по его уникальному id"""
-        raise NotImplementedError
+class BaseStore(Generic[T]):
+    """Базовый класс хранилища данных,
+    параметр T указывает на ресурс над которым нужно провести операции
+    """
+    async def add(self, schema: T) -> None: pass
 
-    @abstractmethod
-    async def revoke(self, token: str, **kwargs) -> bool:
-        """Отзывает токен"""
-        raise NotImplementedError
+    async def get(self, id: UUID | str) -> T | None: pass
 
-    @abstractmethod
-    async def validate(self, token: str, **kwargs) -> dict[str, Any]:
-        """Валидирует токен, включая проверку отзыва"""
-        raise NotImplementedError
+    async def delete(self, id: UUID | str) -> bool: pass

@@ -3,10 +3,9 @@ from __future__ import annotations
 from datetime import datetime
 from uuid import UUID
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict
 
 from ..core.enums import ClientType, GrantType
-from ..core.utils import current_time
 
 
 class RealmCreate(BaseModel):
@@ -56,3 +55,9 @@ class ClientToken(BaseModel):
     """Схема токена для клиента"""
     access_token: str
     token_type: str = "Bearer"
+
+
+class UserTokens(BaseModel):
+    access_token: str
+    refresh_token: str
+    # session_id: UUID

@@ -8,9 +8,9 @@ MAX_NAME_LENGTH = 127
 BYTES_COUNT = 32
 # Минимальное количество grant types
 MIN_GRANT_TYPES_COUNT = 1
-# Дефолтное время протухания токена в минутах
-EXPIRES_DELTA_MINUTES = 15
+# Время истечения токенов
+USER_ACCESS_TOKEN_EXPIRE_IN = timedelta(minutes=15)
+USER_REFRESH_TOKEN_EXPIRE_IN = timedelta(days=7)
+CLIENT_ACCESS_TOKEN_EXPIRE_IN = timedelta(minutes=30)
 # Создатель токенов
 ISSUER = "https://davalka.ru"
-# Время истечение токенов
-CLIENT_ACCESS_TOKEN_EXPIRE = timedelta(hours=2)
