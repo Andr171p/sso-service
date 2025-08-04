@@ -76,7 +76,7 @@ class Client(BaseModel):
         return {
             "iss": ISSUER,
             "sub": self.client_id,
-            "aud": str(self.id),
+            "aud": self.name,
             "realm_id": str(self.realm_id),
             "scope": " ".join(self.scopes)
         }

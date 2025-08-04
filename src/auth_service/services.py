@@ -83,12 +83,10 @@ class ClientJWTService(BaseJWTService):
             return ClientPayload(active=False)
         token_realm_id = payload.get("realm_id")
         if token_realm_id is None or str(realm_id) != token_realm_id:
-            print("ok 1")
             return ClientPayload(
                 active=False, sub=payload.get("sub"), realm_id=realm_id,
             )
         if "exp" in payload and payload["exp"] < datetime.now(tz=moscow_tz).timestamp():
-            print("ok")
             return ClientPayload(
                 active=False, sub=payload.get("sub"), realm_id=realm_id
             )

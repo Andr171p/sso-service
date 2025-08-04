@@ -80,21 +80,3 @@ async def introspect_token(
         service: Depends[ClientJWTService]
 ) -> ClientPayload:
     return await service.validate(token, realm_id=realm_id)
-
-
-@realms_router.post(
-    path="/{realm_id}/revoke",
-    status_code=status.HTTP_200_OK,
-    summary="Отзывает токен",
-)
-async def revoke_token(
-        realm_id: UUID,
-        token: Annotated[str, Form(...)],
-        service: Depends[ClientJWTService]
-) -> None:
-    success = await service.revoke(token, realm_id=realm_id)
-    if not success:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Token already revoked",
-        )
