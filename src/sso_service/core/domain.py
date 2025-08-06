@@ -40,8 +40,15 @@ class User(BaseModel):
     id: UUID = Field(default_factory=uuid4)
     email: EmailStr | None = None
     username: str | None = None
+    password: SecretStr
     active: bool = True
     created_at: datetime = Field(default_factory=current_datetime)
+
+    def hash_password(self) -> User:
+        from ..security import hash_secret
+        hashed_password = hash_secret(self.password.get_secret_value())
+        self.password = SecretStr(hashed_password)
+        return self
 
 
 class Realm(BaseModel):
@@ -115,8 +122,14 @@ class Client(BaseModel):
             "scope": " ".join(self.scopes)
         }
 
+    def hash_client_secret(self) -> Client:
+        from ..security import hash_secret
+        hashed_client_secret = hash_secret(self.client_secret.get_secret_value())
+        self.client_secret = SecretStr(hashed_client_secret)
+        return self
+
     @model_validator(mode="after")
-    def validate_client_config(self) -> Client:
+    def validate_client(self) -> Client:
         if (
             self.client_type == ClientType.PUBLIC
             and GrantType.CLIENT_CREDENTIALS in self.grant_types
@@ -168,4 +181,6 @@ class Session(BaseModel):
     session_id: UUID = Field(default_factory=uuid4)
     user_id: UUID
     expires_at: int | float
+    user_agent: str | None = None
     ip_address: str | None = None
+    last_activity: datetime = Field(default_factory=current_datetime)

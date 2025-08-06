@@ -2,6 +2,8 @@ from typing import Any
 
 from uuid import UUID
 
+from pydantic import EmailStr
+
 from .core.base import BaseAuthService
 from .core.constants import CLIENT_ACCESS_TOKEN_EXPIRE_IN
 from .core.exceptions import (
@@ -33,7 +35,7 @@ class ClientAuthService(BaseAuthService[ClientTokenIntrospection]):
             raise UnauthorizedError("Client unauthorized in this realm")
         if not client.enabled:
             raise NotEnabledError("Client not enabled yet")
-        if verify_secret(client_secret, str(client.client_secret)):
+        if verify_secret(client_secret, client.client_secret.get_secret_value()):
             raise InvalidCredentialsError("Client credentials invalid")
         valid_scopes = self._validate_scopes(scopes, client.scopes)
         if not valid_scopes:
@@ -66,7 +68,7 @@ class ClientAuthService(BaseAuthService[ClientTokenIntrospection]):
             return None
         return valid_scopes or None
 
-    async def introspect_token(self, token: str) -> ClientTokenIntrospection:
+    async def introspect_token(self, token: str, **kwargs) -> ClientTokenIntrospection:
         try:
             payload = decode_token(token)
         except InvalidTokenError:
@@ -87,11 +89,20 @@ class UserAuthService(BaseAuthService):
         self.repository = repository
         self.session_store = session_store
 
-    async def authenticate(self, *args) -> Tokens:
+    async def authenticate(
+            self, realm_id: UUID, email: EmailStr, password: str
+    ) -> Tokens:
+        user = await self.repository.get_by_email(email)
+        if user is None:
+            raise InvalidCredentialsError("Invalid email")
+        if not user.active:
+            raise NotEnabledError("User is not active")
+        if not verify_secret(password, user.password.get_secret_value()):
+            raise InvalidCredentialsError("Invalid password")
         ...
 
-    async def introspect_token(self, token: str) -> Tokens:
-        ...
+    async def introspect_token(self, token: str, **kwargs) -> Tokens:
+        session_id: UUID = kwargs.get("session_id")
 
     async def refresh_token(self) -> ...:
         ...

@@ -7,16 +7,16 @@ from dishka.integrations.fastapi import DishkaRoute
 from dishka.integrations.fastapi import FromDishka as Depends
 from fastapi import APIRouter, Form, HTTPException, status
 
-from src.auth_service.core.dto import ClientTokenIntrospection
-from src.auth_service.core.enums import GrantType
-from src.auth_service.core.exceptions import (
+from src.sso_service.core.dto import ClientTokenIntrospection
+from src.sso_service.core.enums import GrantType
+from src.sso_service.core.exceptions import (
     InvalidCredentialsError,
     NotEnabledError,
     PermissionDeniedError,
     UnauthorizedError,
 )
-from src.auth_service.core.domain import Tokens
-from src.auth_service.services import ClientAuthService
+from src.sso_service.core.domain import Tokens
+from src.sso_service.services import ClientAuthService
 
 logger = logging.getLogger(__name__)
 

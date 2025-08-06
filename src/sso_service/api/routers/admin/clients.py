@@ -5,15 +5,15 @@ from dishka.integrations.fastapi import DishkaRoute
 from dishka.integrations.fastapi import FromDishka as Depends
 from fastapi import APIRouter, HTTPException, status
 
-from src.auth_service.core.exceptions import (
+from src.sso_service.core.exceptions import (
     CreationError,
     DeletionError,
     ReadingError,
     UpdateError,
 )
-from src.auth_service.core.domain import Client, ClientCredentials
-from src.auth_service.database.repository import ClientRepository
-from src.auth_service.security import hash_secret
+from src.sso_service.core.domain import Client, ClientCredentials
+from src.sso_service.database.repository import ClientRepository
+from src.sso_service.security import hash_secret
 from ...schemas import ClientCreate, ClientUpdate, CreatedClient
 
 logger = logging.getLogger(__name__)

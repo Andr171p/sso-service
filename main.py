@@ -1,6 +1,6 @@
 import logging
 
-from src.auth_service.api.app import create_fastapi_app
+from src.sso_service.api.app import create_fastapi_app
 
 logging.basicConfig(level=logging.INFO)
 

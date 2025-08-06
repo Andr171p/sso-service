@@ -6,10 +6,10 @@ from uuid import UUID
 from pydantic import BaseModel
 
 from .domain import Tokens
-from .dto import TokenIntrospection
+from .dto import BaseTokenIntrospection
 
 T = TypeVar("T", bound=BaseModel)
-I = TypeVar("I", bound=TokenIntrospection)
+I = TypeVar("I", bound=BaseTokenIntrospection)
 
 
 class BaseAuthService(ABC, Generic[I]):
@@ -31,7 +31,7 @@ class BaseAuthService(ABC, Generic[I]):
         raise NotImplementedError
 
     @abstractmethod
-    async def introspect_token(self, token: str) -> I: pass
+    async def introspect_token(self, token: str, **kwargs) -> I: pass
 
 
 class BaseStore(Generic[T]):

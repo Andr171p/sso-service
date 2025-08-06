@@ -144,3 +144,13 @@ class ClientRepository(CRUDRepository[ClientModel, Client]):
 class UserRepository(CRUDRepository[UserModel, User]):
     model = UserModel
     schema = User
+
+    async def get_by_email(self, email: str) -> User | None:
+        try:
+            stmt = select(UserModel).where(self.model.email == email)
+            result = await self.session.execute(stmt)
+            model = result.scalar_one_or_none()
+            return self.schema.model_validate(model) if model else None
+        except SQLAlchemyError as e:
+            await self.session.rollback()
+            raise ReadingError(f"Error while reading: {e}") from e
