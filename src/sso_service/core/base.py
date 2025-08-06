@@ -31,7 +31,7 @@ class BaseAuthService(ABC, Generic[I]):
         raise NotImplementedError
 
     @abstractmethod
-    async def introspect_token(self, token: str, **kwargs) -> I: pass
+    async def introspect(self, token: str, **kwargs) -> I: pass
 
 
 class BaseStore(Generic[T]):

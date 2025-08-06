@@ -68,7 +68,7 @@ class ClientAuthService(BaseAuthService[ClientTokenIntrospection]):
             return None
         return valid_scopes or None
 
-    async def introspect_token(self, token: str, **kwargs) -> ClientTokenIntrospection:
+    async def introspect(self, token: str, **kwargs) -> ClientTokenIntrospection:
         try:
             payload = decode_token(token)
         except InvalidTokenError:
@@ -101,8 +101,8 @@ class UserAuthService(BaseAuthService):
             raise InvalidCredentialsError("Invalid password")
         ...
 
-    async def introspect_token(self, token: str, **kwargs) -> Tokens:
+    async def introspect(self, token: str, **kwargs) -> Tokens:
         session_id: UUID = kwargs.get("session_id")
 
-    async def refresh_token(self) -> ...:
+    async def refresh(self) -> ...:
         ...
