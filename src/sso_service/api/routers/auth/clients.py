@@ -72,7 +72,7 @@ async def introspect_token(
         token: Annotated[str, Form(...)], service: Depends[ClientAuthService]
 ) -> ClientTokenIntrospection:
     try:
-        return await service.introspect_token(token)
+        return await service.introspect(token)
     except UnauthorizedError as e:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
