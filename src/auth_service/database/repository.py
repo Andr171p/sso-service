@@ -7,7 +7,7 @@ from sqlalchemy import delete, insert, select, update
 from sqlalchemy.exc import IntegrityError, SQLAlchemyError
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from ..core.schemas import Client, Realm
+from ..core.domain import Client, Realm, User
 from ..core.exceptions import (
     AlreadyCreatedError,
     CreationError,
@@ -16,7 +16,7 @@ from ..core.exceptions import (
     UpdateError,
 )
 from .base import Base
-from .models import ClientModel, RealmModel
+from .models import ClientModel, RealmModel, UserModel
 
 Model = TypeVar("Model", bound=Base)
 Schema = TypeVar("Schema", bound=BaseModel)
@@ -31,7 +31,6 @@ class CRUDRepository[Model: Base, Schema: BaseModel]:
 
     async def create(self, schema: Schema) -> Schema:
         try:
-            print(schema.model_dump())
             stmt = insert(self.model).values(**schema.model_dump()).returning(self.model)
             result = await self.session.execute(stmt)
             await self.session.commit()
@@ -95,11 +94,11 @@ class RealmRepository(CRUDRepository[RealmModel, Realm]):
             return [Realm.model_validate(model) for model in models]
         except SQLAlchemyError as e:
             await self.session.rollback()
-            raise ReadingError(f"Error while reading all: {e}") from e
+            raise ReadingError(f"Error while reading all realms: {e}") from e
 
-    async def get_by_name(self, name: str) -> Realm | None:
+    async def get_by_slug(self, slug: str) -> Realm | None:
         try:
-            stmt = select(RealmModel).where(self.model.name == name)
+            stmt = select(RealmModel).where(self.model.slug == slug)
             result = await self.session.execute(stmt)
             model = result.scalar_one_or_none()
             return self.schema.model_validate(model) if model else None
@@ -114,7 +113,10 @@ class ClientRepository(CRUDRepository[ClientModel, Client]):
 
     async def get_by_realm(self, realm_id: UUID) -> list[Client]:
         try:
-            stmt = select(self.model).where(self.model.realm_id == realm_id)
+            stmt = (
+                select(self.model)
+                .where(self.model.realm_id == realm_id)
+            )
             results = await self.session.execute(stmt)
             models = results.scalars().all()
             return [self.schema.model_validate(model) for model in models]
@@ -137,3 +139,8 @@ class ClientRepository(CRUDRepository[ClientModel, Client]):
         except SQLAlchemyError as e:
             await self.session.rollback()
             raise ReadingError(f"Error while reading: {e}") from e
+
+
+class UserRepository(CRUDRepository[UserModel, User]):
+    model = UserModel
+    schema = User

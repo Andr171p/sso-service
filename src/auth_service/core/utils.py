@@ -10,7 +10,7 @@ def generate_secret() -> str:
     return secrets.token_urlsafe(BYTES_COUNT)
 
 
-def generate_id() -> str:
+def generate_public_id() -> str:
     """Генерирует произвольный публичный id"""
     alphabet = string.ascii_letters + string.digits
     return "".join(secrets.choice(alphabet) for _ in range(BYTES_COUNT))
@@ -29,7 +29,7 @@ def format_scope(scope: str) -> list[str]:
     return validate_scopes(scope.split(" "))
 
 
-def current_time() -> datetime:
+def current_datetime() -> datetime:
     from ..settings import moscow_tz
     return datetime.now(tz=moscow_tz)
 

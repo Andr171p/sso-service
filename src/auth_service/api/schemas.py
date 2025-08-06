@@ -23,10 +23,13 @@ class RealmUpdate(BaseModel):
 
 class ClientCreate(BaseModel):
     """Схема для создания клиента"""
+    realm_id: UUID
     name: str
     description: str | None = None
     client_type: ClientType
     scopes: list[str]
+
+    model_config = ConfigDict(from_attributes=True)
 
 
 class CreatedClient(BaseModel):
@@ -47,17 +50,6 @@ class CreatedClient(BaseModel):
 class ClientUpdate(BaseModel):
     """Схема для обновления клиента"""
     name: str | None = None
+    slug: str | None = None
     description: str | None = None
     enabled: bool = True
-
-
-class ClientToken(BaseModel):
-    """Схема токена для клиента"""
-    access_token: str
-    token_type: str = "Bearer"
-
-
-class UserTokens(BaseModel):
-    access_token: str
-    refresh_token: str
-    # session_id: UUID

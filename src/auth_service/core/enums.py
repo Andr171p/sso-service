@@ -17,3 +17,7 @@ class GrantType(StrEnum):
 class TokenType(StrEnum):
     ACCESS = "access"
     REFRESH = "refresh"
+
+
+class UserRole(StrEnum):
+    ...

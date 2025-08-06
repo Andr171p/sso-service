@@ -1,7 +1,9 @@
-from datetime import datetime
+from typing import Any
+
 from uuid import UUID
 
 from .core.base import BaseAuthService
+from .core.constants import CLIENT_ACCESS_TOKEN_EXPIRE_IN
 from .core.exceptions import (
     InvalidCredentialsError,
     InvalidTokenError,
@@ -9,20 +11,22 @@ from .core.exceptions import (
     PermissionDeniedError,
     UnauthorizedError,
 )
-from .core.schemas import Client, ClientPayload, UserPayload
-from .core.utils import format_scope
-from .database.repository import ClientRepository
-from .security import decode_token, verify_secret
-from .settings import moscow_tz
+from .core.domain import Tokens
+from .core.dto import ClientTokenIntrospection
+from .core.enums import TokenType
+from .core.utils import format_scope, current_timestamp
+from .database.repository import ClientRepository, UserRepository
+from .security import verify_secret, issue_token, decode_token
+from .storage import RedisSessionStore
 
 
-class ClientAuthService(BaseAuthService[Client]):
+class ClientAuthService(BaseAuthService[ClientTokenIntrospection]):
     def __init__(self, repository: ClientRepository) -> None:
         self.repository = repository
 
     async def authenticate(
             self, realm_id: UUID, client_id: str, client_secret: str, scope: str
-    ) -> Client:
+    ) -> Tokens:
         scopes = format_scope(scope)
         client = await self.repository.get_by_client_id(realm_id, client_id)
         if client is None:
@@ -34,7 +38,12 @@ class ClientAuthService(BaseAuthService[Client]):
         valid_scopes = self._validate_scopes(scopes, client.scopes)
         if not valid_scopes:
             raise PermissionDeniedError("Client permission denied")
-        return client
+        access_token = issue_token(
+            token_type=TokenType.ACCESS,
+            payload=client.payload,
+            expires_delta=CLIENT_ACCESS_TOKEN_EXPIRE_IN,
+        )
+        return Tokens(access_token=access_token)
 
     @staticmethod
     def _validate_scopes(
@@ -57,24 +66,32 @@ class ClientAuthService(BaseAuthService[Client]):
             return None
         return valid_scopes or None
 
-
-def validate_client_token(token: str, realm_id: UUID) -> ClientPayload:
-    """Скрывает ошибки согласно RFC 7662, при ошибках поле active=false"""
-    try:
-        payload = decode_token(token)
-    except InvalidTokenError:
-        return ClientPayload(active=False)
-    token_realm_id = payload.get("realm_id")
-    if token_realm_id is None or str(realm_id) != token_realm_id:
-        return ClientPayload(
-            active=False, sub=payload.get("sub"), realm_id=realm_id,
-        )
-    if "exp" in payload and payload["exp"] < datetime.now(tz=moscow_tz).timestamp():
-        return ClientPayload(
-            active=False, sub=payload.get("sub"), realm_id=realm_id
-        )
-    return ClientPayload.model_validate(payload)
+    async def introspect_token(self, token: str) -> ClientTokenIntrospection:
+        try:
+            payload = decode_token(token)
+        except InvalidTokenError:
+            raise UnauthorizedError("Invalid token")
+        introspection_params: dict[str, Any] = {}
+        if "exp" in payload and payload["exp"] < current_timestamp():
+            introspection_params.update({
+                "active": False, "cause": "Token expired"
+            })
+        introspection_params.update(payload, active=True)
+        return ClientTokenIntrospection(**introspection_params)
 
 
-def validate_user_token(token: str) -> UserPayload:
-    ...
+class UserAuthService(BaseAuthService):
+    def __init__(
+            self, repository: UserRepository, session_store: RedisSessionStore
+    ) -> None:
+        self.repository = repository
+        self.session_store = session_store
+
+    async def authenticate(self, *args) -> Tokens:
+        ...
+
+    async def introspect_token(self, token: str) -> Tokens:
+        ...
+
+    async def refresh_token(self) -> ...:
+        ...

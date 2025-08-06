@@ -6,7 +6,6 @@ from uuid import uuid4
 import jwt
 from passlib.context import CryptContext
 
-from .core.constants import EXPIRES_DELTA_MINUTES
 from .core.enums import TokenType
 from .core.exceptions import InvalidTokenError
 from .settings import moscow_tz, settings
@@ -24,17 +23,13 @@ def verify_secret(plain_secret: str, hashed_secret: str) -> bool:
     return pwd_context.verify(plain_secret, hashed_secret)
 
 
-def create_token(
+def issue_token(
         token_type: TokenType,
         payload: dict[str, Any],
-        expires_delta: timedelta | None = None,
+        expires_delta: timedelta,
 ) -> str:
-    """Создаёт токен по заданным параметрам"""
     now = datetime.now(tz=moscow_tz)
-    expire = (
-            now +
-            (expires_delta or timedelta(minutes=EXPIRES_DELTA_MINUTES))
-    )
+    expire = now + expires_delta
     payload = payload.copy()
     payload.update({
         "exp": expire.timestamp(),
@@ -50,7 +45,6 @@ def create_token(
 
 
 def decode_token(token: str) -> dict[str, Any]:
-    """Декодирует токен"""
     try:
         return jwt.decode(
             token,

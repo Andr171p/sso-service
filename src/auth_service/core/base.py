@@ -1,20 +1,24 @@
 from typing import Generic, TypeVar
 
-from abc import abstractmethod
+from abc import ABC, abstractmethod
 from uuid import UUID
 
 from pydantic import BaseModel
 
+from .domain import Tokens
+from .dto import TokenIntrospection
+
 T = TypeVar("T", bound=BaseModel)
+I = TypeVar("I", bound=TokenIntrospection)
 
 
-class BaseAuthService(Generic[T]):
+class BaseAuthService(ABC, Generic[I]):
     """Базовый класс для аутентификации,
     параметр T указывает на ресурс который нужно аутентифицировать.
     """
 
     @abstractmethod
-    async def authenticate(self, *args) -> T:
+    async def authenticate(self, *args) -> Tokens:
         """Метод для аутентификации ресурса.
 
         :param args: Необходимые аргументы для аутентификации.
@@ -22,9 +26,12 @@ class BaseAuthService(Generic[T]):
         :exception UnauthorizedError: Несанкционированный доступ.
         :exception NotEnabledError: Ресурс не доступен.
         :exception PermissionDeniedError: Не достаточно прав.
-        :return: T аутентифицированный клиент.
+        :return: JWT аутентифицированного клиента.
         """
         raise NotImplementedError
+
+    @abstractmethod
+    async def introspect_token(self, token: str) -> I: pass
 
 
 class BaseStore(Generic[T]):

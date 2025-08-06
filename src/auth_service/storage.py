@@ -4,7 +4,7 @@ from uuid import UUID
 from redis.asyncio import Redis as AsyncRedis
 
 from .core.base import BaseStore
-from .core.schemas import Session
+from .core.domain import Session
 
 
 class RedisSessionStore(BaseStore[Session]):

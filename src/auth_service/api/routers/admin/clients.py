@@ -11,31 +11,30 @@ from src.auth_service.core.exceptions import (
     ReadingError,
     UpdateError,
 )
-from src.auth_service.core.schemas import Client, ClientCredentials
+from src.auth_service.core.domain import Client, ClientCredentials
 from src.auth_service.database.repository import ClientRepository
 from src.auth_service.security import hash_secret
 from ...schemas import ClientCreate, ClientUpdate, CreatedClient
 
 logger = logging.getLogger(__name__)
 
-clients_router = APIRouter(tags=["Clients"], route_class=DishkaRoute)
+clients_router = APIRouter(prefix="/clients", tags=["Clients"], route_class=DishkaRoute)
 
 
 @clients_router.post(
-    path="/realms/{realm_id}/clients",
+    path="",
     status_code=status.HTTP_201_CREATED,
     response_model=CreatedClient,
     summary="Создаёт клиента в заданной области",
 )
 async def create_client(
-        realm_id: UUID, client_create: ClientCreate, repository: Depends[ClientRepository]
+        client_create: ClientCreate, repository: Depends[ClientRepository]
 ) -> CreatedClient:
     try:
-        data = client_create.model_dump()
-        data["realm_id"] = realm_id
-        data["client_secret"] = hash_secret(data["client_secret"])
-        client = await repository.create(Client.model_validate(data))
-        return CreatedClient.model_validate(client)
+        client = Client.model_validate(client_create)
+        client.client_secret = hash_secret(str(client.client_secret))
+        created_client = await repository.create(client)
+        return CreatedClient.model_validate(created_client)
     except CreationError:
         logger.exception("Error while creating client: {e}")
         raise HTTPException(
@@ -45,7 +44,7 @@ async def create_client(
 
 
 @clients_router.get(
-    path="/clients/{id}",
+    path="/{id}",
     status_code=status.HTTP_200_OK,
     response_model=CreatedClient,
     summary="Получает клиента из заданной области"
@@ -69,7 +68,7 @@ async def get_client(
 
 
 @clients_router.get(
-    path="/clients/{id}/credentials",
+    path="/{id}/credentials",
     status_code=status.HTTP_200_OK,
     response_model=ClientCredentials,
     summary="Получает авторазиционные данные клиента"
@@ -99,7 +98,7 @@ async def get_client_credentials(
 
 
 @clients_router.patch(
-    path="/clients/{id}",
+    path="/{id}",
     status_code=status.HTTP_200_OK,
     response_model=CreatedClient,
     summary="Обновляет данные клиента"
@@ -125,7 +124,7 @@ async def update_client(
 
 
 @clients_router.delete(
-    path="/clients/{id}",
+    path="/{id}",
     status_code=status.HTTP_204_NO_CONTENT,
     summary="Удаляет клиента по его уникальному id"
 )
