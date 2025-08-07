@@ -5,14 +5,14 @@ from uuid import UUID
 from dishka.integrations.fastapi import DishkaRoute
 from dishka.integrations.fastapi import FromDishka as Depends
 from fastapi import APIRouter, status, HTTPException, Form, Response
-from pydantic import EmailStr, SecretStr
+from pydantic import EmailStr
 
-from src.sso_service.core.domain import User, Tokens
+from src.sso_service.core.domain import User
 from src.sso_service.core.exceptions import CreationError, UnauthorizedError
 from src.sso_service.database.repository import UserRepository
 from src.sso_service.services import UserAuthService
 
-users_router = APIRouter(prefix="/users", tags=["Users auth"], route_class=DishkaRoute)
+users_router = APIRouter(prefix="/realm", tags=["Users auth"], route_class=DishkaRoute)
 
 
 @users_router.post(
@@ -42,7 +42,7 @@ async def register_user(
     summary="Аутентифицирует пользователя"
 )
 async def login_user(
-        realm_id: Annotated[UUID, Form(...)],
+        realm: Annotated[UUID, Form(...)],
         email: Annotated[EmailStr, Form(...)],
         password: Annotated[str, Form(...)],
         response: Response,

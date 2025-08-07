@@ -5,20 +5,21 @@ from uuid import UUID
 
 from pydantic import BaseModel
 
-from .domain import Tokens
-from .dto import BaseTokenIntrospection
+from .domain import Claims
 
 T = TypeVar("T", bound=BaseModel)
-I = TypeVar("I", bound=BaseTokenIntrospection)
+C = TypeVar("C", bound=Claims)
 
 
-class BaseAuthService(ABC, Generic[I]):
-    """Базовый класс для аутентификации,
-    параметр T указывает на ресурс который нужно аутентифицировать.
+class BaseAuthService(ABC, Generic[T, C]):
+    """Базовый класс для аутентификации.
+    Параметр T указывает на модель данных токена,
+    которую нужно вернуть при аутентификации.
+    Параметр C указывает декодированную полезную нагрузку токена.
     """
 
     @abstractmethod
-    async def authenticate(self, *args) -> Tokens:
+    async def authenticate(self, *args) -> T:
         """Метод для аутентификации ресурса.
 
         :param args: Необходимые аргументы для аутентификации.
@@ -31,7 +32,14 @@ class BaseAuthService(ABC, Generic[I]):
         raise NotImplementedError
 
     @abstractmethod
-    async def introspect(self, token: str, **kwargs) -> I: pass
+    async def introspect(self, token: str, **kwargs) -> C:
+        """Производит декодирование и валидацию токена.
+
+        :param token: Выданный токен.
+        :param kwargs: Дополнительные параметры для валидации токена.
+        :return: Декодированная полезная нагрузка токена.
+        """
+        raise NotImplementedError
 
 
 class BaseStore(Generic[T]):

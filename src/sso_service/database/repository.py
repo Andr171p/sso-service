@@ -113,10 +113,7 @@ class ClientRepository(CRUDRepository[ClientModel, Client]):
 
     async def get_by_realm(self, realm_id: UUID) -> list[Client]:
         try:
-            stmt = (
-                select(self.model)
-                .where(self.model.realm_id == realm_id)
-            )
+            stmt = select(self.model).where(self.model.realm_id == realm_id)
             results = await self.session.execute(stmt)
             models = results.scalars().all()
             return [self.schema.model_validate(model) for model in models]
@@ -124,12 +121,13 @@ class ClientRepository(CRUDRepository[ClientModel, Client]):
             await self.session.rollback()
             raise ReadingError(f"Error while reading: {e}") from e
 
-    async def get_by_client_id(self, realm_id: UUID, client_id: str) -> Client | None:
+    async def get_by_client_id(self, realm_slug: str, client_id: str) -> Client | None:
         try:
             stmt = (
-                select(ClientModel)
+                select(self.model)
+                .join(self.model.realm)
                 .where(
-                    (self.model.realm_id == realm_id) &
+                    (RealmModel.slug == realm_slug) &
                     (self.model.client_id == client_id)
                 )
             )

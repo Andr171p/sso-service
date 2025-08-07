@@ -14,8 +14,8 @@ from src.sso_service.core.exceptions import (
     ReadingError,
     UpdateError,
 )
-from src.sso_service.core.domain import Realm
-from src.sso_service.database.repository import RealmRepository
+from src.sso_service.core.domain import Realm, Client
+from src.sso_service.database.repository import RealmRepository, ClientRepository
 
 from ...schemas import RealmCreate, RealmUpdate
 
@@ -134,3 +134,22 @@ async def delete_realm(id: UUID, repository: Depends[RealmRepository]) -> None:
         ) from None
     else:
         return
+
+
+@realms_router.get(
+    path="/{id}/clients",
+    status_code=status.HTTP_200_OK,
+    response_model=list[Client],
+    summary="Получает всех клинтов в заданной области"
+)
+async def get_client_by_realm(
+        id: UUID, repository: Depends[ClientRepository]
+) -> list[Client]:
+    try:
+        return await repository.get_by_realm(id)
+    except ReadingError:
+        logger.exception("Occurred error while reading: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Occurred error while reading clients in realm",
+        ) from None

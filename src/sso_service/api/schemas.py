@@ -3,7 +3,7 @@ from __future__ import annotations
 from datetime import datetime
 from uuid import UUID
 
-from pydantic import BaseModel, ConfigDict
+from pydantic import BaseModel, ConfigDict, field_validator, SecretStr
 
 from ..core.enums import ClientType, GrantType
 
@@ -11,12 +11,14 @@ from ..core.enums import ClientType, GrantType
 class RealmCreate(BaseModel):
     """Схема для создания области"""
     name: str
+    slug: str
     description: str | None
 
 
 class RealmUpdate(BaseModel):
     """Схема для обновления области"""
     name: str | None = None
+    slug: str | None = None
     description: str | None = None
     enabled: bool = True
 
@@ -39,12 +41,17 @@ class CreatedClient(BaseModel):
     description: str | None = None
     enabled: bool = True
     client_id: str
+    client_secret: str
     client_type: ClientType
     grant_types: list[GrantType]
     scopes: list[str]
     created_at: datetime
 
     model_config = ConfigDict(from_attributes=True)
+
+    @field_validator("client_secret", mode="before")
+    def validate_secret(cls, client_secret: SecretStr) -> str:
+        return client_secret.get_secret_value()
 
 
 class ClientUpdate(BaseModel):

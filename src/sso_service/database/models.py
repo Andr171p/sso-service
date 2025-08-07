@@ -9,6 +9,7 @@ from sqlalchemy import (
     Text,
     UniqueConstraint
 )
+from sqlalchemy.dialects.postgresql import UUID as PG_UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from .base import Base
@@ -18,8 +19,20 @@ class UserModel(Base):
     __tablename__ = "users"
 
     email: Mapped[str] = mapped_column(nullable=True)
+    email_verified: Mapped[bool]
     username: Mapped[str] = mapped_column(nullable=True)
     active: Mapped[bool]
+    roles: Mapped[list["RoleModel"]] = relationship(back_populates="user")
+
+
+class RoleModel(Base):
+    __tablename__ = "roles"
+
+    user_id: Mapped[UUID] = mapped_column(ForeignKey("users.id"), unique=False)
+    realm_id: Mapped[UUID] = mapped_column(PG_UUID(as_uuid=True), unique=False)
+    role: Mapped[str]
+
+    user: Mapped["UserModel"] = relationship(back_populates="roles")
 
 
 class RealmModel(Base):
@@ -49,11 +62,10 @@ class ClientModel(Base):
     grant_types: Mapped[list[str]] = mapped_column(ARRAY(String))
     redirect_uris: Mapped[list[str]] = mapped_column(ARRAY(String))
     scopes: Mapped[list[str]] = mapped_column(ARRAY(String))
-    already_seen_secret: Mapped[bool]
 
     realm: Mapped["RealmModel"] = relationship(back_populates="clients")
 
-    __table_args__ = (UniqueConstraint("realm_id", "client_id", name="id_uq"),)
+    __table_args__ = (UniqueConstraint("realm_id", "client_id", name="client_uq"),)
 
 
 class IdentityProviderModel(Base):
@@ -69,7 +81,7 @@ class IdentityProviderModel(Base):
 class UserIdentityModel(Base):
     __tablename__ = "user_identities"
 
-    user_id: Mapped[UUID] = mapped_column(ForeignKey("users.id"), unique=False)
+    user_id: Mapped[UUID] = mapped_column(PG_UUID(as_uuid=True), unique=False)
     provider_id: Mapped[UUID] = mapped_column(
         ForeignKey("identity_providers.id"), unique=False
     )
@@ -77,5 +89,5 @@ class UserIdentityModel(Base):
     email: Mapped[str | None] = mapped_column(nullable=True)
 
     __table_args__ = (
-        UniqueConstraint("user_id", "provider_user_id", name="id_uq"),
+        UniqueConstraint("user_id", "provider_user_id", name="identity_uq"),
     )

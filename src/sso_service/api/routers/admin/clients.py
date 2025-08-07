@@ -11,9 +11,8 @@ from src.sso_service.core.exceptions import (
     ReadingError,
     UpdateError,
 )
-from src.sso_service.core.domain import Client, ClientCredentials
+from src.sso_service.core.domain import Client
 from src.sso_service.database.repository import ClientRepository
-from src.sso_service.security import hash_secret
 from ...schemas import ClientCreate, ClientUpdate, CreatedClient
 
 logger = logging.getLogger(__name__)
@@ -32,9 +31,13 @@ async def create_client(
 ) -> CreatedClient:
     try:
         client = Client.model_validate(client_create)
-        client.client_secret = hash_secret(str(client.client_secret))
+        client_secret = client.client_secret
+        client = client.hash_client_secret()
         created_client = await repository.create(client)
-        return CreatedClient.model_validate(created_client)
+        return CreatedClient(
+            **created_client.model_dump(exclude={"client_secret"}),
+            client_secret=client_secret
+        )
     except CreationError:
         logger.exception("Error while creating client: {e}")
         raise HTTPException(
@@ -47,6 +50,7 @@ async def create_client(
     path="/{id}",
     status_code=status.HTTP_200_OK,
     response_model=CreatedClient,
+    response_model_exclude={"client_secret"},
     summary="Получает клиента из заданной области"
 )
 async def get_client(
@@ -59,36 +63,6 @@ async def get_client(
                 status_code=status.HTTP_404_NOT_FOUND, detail="Client not found"
             ) from None
         return CreatedClient.model_validate(client)
-    except ReadingError:
-        logger.exception("Error while retrieving client: {e}")
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Error while retrieving client"
-        ) from None
-
-
-@clients_router.get(
-    path="/{id}/credentials",
-    status_code=status.HTTP_200_OK,
-    response_model=ClientCredentials,
-    summary="Получает авторазиционные данные клиента"
-)
-async def get_client_credentials(
-        id: UUID, repository: Depends[ClientRepository]
-) -> ClientCredentials:
-    try:
-        client = await repository.read(id)
-        if not client:
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND, detail="Client not found"
-            ) from None
-        if not client.already_seen_secret:
-            await repository.update(id, already_seen_secret=True)
-            return ClientCredentials.model_validate(client)
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Client already seen secret"
-        ) from None
     except ReadingError:
         logger.exception("Error while retrieving client: {e}")
         raise HTTPException(

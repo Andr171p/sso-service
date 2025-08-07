@@ -12,40 +12,51 @@ from .core.exceptions import (
     NotEnabledError,
     PermissionDeniedError,
     UnauthorizedError,
+    UnsupportedGrantTypeError,
 )
-from .core.domain import Tokens
-from .core.dto import ClientTokenIntrospection
-from .core.enums import TokenType
-from .core.utils import format_scope, current_timestamp
+from .core.domain import Token, ClientClaims, TokenPair, UserClaims
+from .core.enums import TokenType, GrantType
+from .core.utils import format_scope, current_timestamp, current_datetime
 from .database.repository import ClientRepository, UserRepository
 from .security import verify_secret, issue_token, decode_token
 from .storage import RedisSessionStore
 
 
-class ClientAuthService(BaseAuthService[ClientTokenIntrospection]):
+class ClientAuthService(BaseAuthService[Token, ClientClaims]):
     def __init__(self, repository: ClientRepository) -> None:
         self.repository = repository
 
     async def authenticate(
-            self, realm_id: UUID, client_id: str, client_secret: str, scope: str
-    ) -> Tokens:
-        scopes = format_scope(scope)
-        client = await self.repository.get_by_client_id(realm_id, client_id)
+            self,
+            realm: str,
+            grant_type: str,
+            client_id: str,
+            client_secret: str,
+            scope: str
+    ) -> Token:
+        if grant_type != GrantType.CLIENT_CREDENTIALS:
+            raise UnsupportedGrantTypeError("Unsupported grant type")
+        client = await self.repository.get_by_client_id(realm, client_id)
         if client is None:
             raise UnauthorizedError("Client unauthorized in this realm")
         if not client.enabled:
             raise NotEnabledError("Client not enabled yet")
-        if verify_secret(client_secret, client.client_secret.get_secret_value()):
+        if not verify_secret(client_secret, client.client_secret.get_secret_value()):
             raise InvalidCredentialsError("Client credentials invalid")
-        valid_scopes = self._validate_scopes(scopes, client.scopes)
+        valid_scopes = self._validate_scopes(format_scope(scope), client.scopes)
         if not valid_scopes:
             raise PermissionDeniedError("Client permission denied")
         access_token = issue_token(
             token_type=TokenType.ACCESS,
-            payload=client.payload,
-            expires_delta=CLIENT_ACCESS_TOKEN_EXPIRE_IN,
+            payload=client.to_payload(realm=realm),
+            expires_in=CLIENT_ACCESS_TOKEN_EXPIRE_IN,
         )
-        return Tokens(access_token=access_token)
+        return Token(
+            access_token=access_token,
+            expires_at=(
+                    current_datetime() + CLIENT_ACCESS_TOKEN_EXPIRE_IN
+            ).timestamp(),
+        )
 
     @staticmethod
     def _validate_scopes(
@@ -68,21 +79,26 @@ class ClientAuthService(BaseAuthService[ClientTokenIntrospection]):
             return None
         return valid_scopes or None
 
-    async def introspect(self, token: str, **kwargs) -> ClientTokenIntrospection:
+    async def introspect(self, token: str, **kwargs) -> ClientClaims:
+        realm = kwargs.get("realm")
+        if not realm:
+            raise ValueError("Realm is required")
         try:
             payload = decode_token(token)
         except InvalidTokenError:
             raise UnauthorizedError("Invalid token")
-        introspection_params: dict[str, Any] = {}
+        if payload.get("realm") is None and payload.get("realm") != realm:
+            raise UnauthorizedError("Invalid token in this realm")
+        claims: dict[str, Any] = {}
         if "exp" in payload and payload["exp"] < current_timestamp():
-            introspection_params.update({
+            claims.update({
                 "active": False, "cause": "Token expired"
             })
-        introspection_params.update(payload, active=True)
-        return ClientTokenIntrospection(**introspection_params)
+        claims.update(payload, active=True)
+        return ClientClaims(**claims)
 
 
-class UserAuthService(BaseAuthService):
+class UserAuthService(BaseAuthService[TokenPair, UserClaims]):
     def __init__(
             self, repository: UserRepository, session_store: RedisSessionStore
     ) -> None:
@@ -91,7 +107,7 @@ class UserAuthService(BaseAuthService):
 
     async def authenticate(
             self, realm_id: UUID, email: EmailStr, password: str
-    ) -> Tokens:
+    ) -> TokenPair:
         user = await self.repository.get_by_email(email)
         if user is None:
             raise InvalidCredentialsError("Invalid email")
@@ -99,10 +115,11 @@ class UserAuthService(BaseAuthService):
             raise NotEnabledError("User is not active")
         if not verify_secret(password, user.password.get_secret_value()):
             raise InvalidCredentialsError("Invalid password")
-        ...
+        return TokenPair()
 
-    async def introspect(self, token: str, **kwargs) -> Tokens:
+    async def introspect(self, token: str, **kwargs) -> UserClaims:
         session_id: UUID = kwargs.get("session_id")
+        return UserClaims()
 
-    async def refresh(self) -> ...:
+    async def refresh(self, token: str) -> TokenPair:
         ...

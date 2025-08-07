@@ -19,5 +19,9 @@ class TokenType(StrEnum):
     REFRESH = "refresh"
 
 
-class UserRole(StrEnum):
-    ...
+class Role(StrEnum):
+    """Глобальные роли пользователя в области"""
+    SUPERADMIN = "superadmin"
+    ADMIN = "admin"
+    USER = "user"
+    GUEST = "guest"

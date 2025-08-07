@@ -1,6 +1,6 @@
 from typing import Any
 
-from datetime import datetime, timedelta
+from datetime import timedelta
 from uuid import uuid4
 
 import jwt
@@ -8,7 +8,8 @@ from passlib.context import CryptContext
 
 from .core.enums import TokenType
 from .core.exceptions import InvalidTokenError
-from .settings import moscow_tz, settings
+from .core.utils import current_datetime
+from .settings import settings
 
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
@@ -26,15 +27,14 @@ def verify_secret(plain_secret: str, hashed_secret: str) -> bool:
 def issue_token(
         token_type: TokenType,
         payload: dict[str, Any],
-        expires_delta: timedelta,
+        expires_in: timedelta,
 ) -> str:
-    now = datetime.now(tz=moscow_tz)
-    expire = now + expires_delta
-    payload = payload.copy()
+    now = current_datetime()
+    expires_at = now + expires_in
     payload.update({
-        "exp": expire.timestamp(),
+        "exp": expires_at.timestamp(),
         "iat": now.timestamp(),
-        "type": token_type.value,
+        "token_type": token_type.value,
         "jti": str(uuid4())
     })
     return jwt.encode(

@@ -2,12 +2,14 @@ import secrets
 import string
 from datetime import datetime
 
+from pydantic import SecretStr
+
 from .constants import BYTES_COUNT
 
 
-def generate_secret() -> str:
+def generate_secret() -> SecretStr:
     """Генерирует произвольный секретный код"""
-    return secrets.token_urlsafe(BYTES_COUNT)
+    return SecretStr(secrets.token_urlsafe(BYTES_COUNT))
 
 
 def generate_public_id() -> str:

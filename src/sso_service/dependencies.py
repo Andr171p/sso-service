@@ -6,8 +6,8 @@ from redis.asyncio import Redis as AsyncRedis
 
 from .database.base import create_sessionmaker
 from .database.repository import ClientRepository, RealmRepository
-from .services import ClientAuthService, ClientJWTService
-from .storage import RedisTokenStore
+from .services import ClientAuthService
+from .storage import RedisSessionStore
 from .settings import Settings, settings
 
 
@@ -40,16 +40,12 @@ class AppProvider(Provider):
         return ClientRepository(session)
 
     @provide(scope=Scope.APP)
-    def get_token_store(self, redis: AsyncRedis) -> RedisTokenStore:
-        return RedisTokenStore(redis)
+    def get_session_store(self, redis: AsyncRedis) -> RedisSessionStore:
+        return RedisSessionStore(redis)
 
     @provide(scope=Scope.REQUEST)
     def get_client_auth_service(self, repository: ClientRepository) -> ClientAuthService:
         return ClientAuthService(repository)
-
-    @provide(scope=Scope.APP)
-    def get_client_jwt_service(self, token_store: RedisTokenStore) -> ClientJWTService:
-        return ClientJWTService(token_store)
 
 
 container = make_async_container(AppProvider(), context={Settings: settings})

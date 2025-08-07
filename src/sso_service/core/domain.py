@@ -13,11 +13,12 @@ from pydantic import (
     HttpUrl,
     SecretStr,
     field_validator,
+    field_serializer,
     model_validator
 )
 
 from .constants import MAX_NAME_LENGTH, MIN_GRANT_TYPES_COUNT, ISSUER
-from .enums import ClientType, GrantType
+from .enums import ClientType, GrantType, Role, TokenType
 from .utils import (
     current_datetime,
     validate_scopes,
@@ -39,16 +40,26 @@ class User(BaseModel):
     """
     id: UUID = Field(default_factory=uuid4)
     email: EmailStr | None = None
+    email_verified: bool = False
     username: str | None = None
     password: SecretStr
     active: bool = True
+    roles: list[Role] = Field(default=[Role.USER])
     created_at: datetime = Field(default_factory=current_datetime)
 
     def hash_password(self) -> User:
         from ..security import hash_secret
-        hashed_password = hash_secret(self.password.get_secret_value())
-        self.password = SecretStr(hashed_password)
+        self.password = SecretStr(
+            hash_secret(self.password.get_secret_value())
+        )
         return self
+
+    def to_payload(self, **kwargs) -> dict[str, Any]:
+        return {
+            "iss": ISSUER,
+            "sub": self.id,
+            **kwargs,
+        }
 
 
 class Realm(BaseModel):
@@ -89,7 +100,6 @@ class Client(BaseModel):
         client_type: Тип клиента (важен для определения grant_type).
         grant_types: Определяет метод получения токенов клиенту.
         scopes: Права выдаваемые клиенту для ограничения доступа к другим клиентам.
-        already_seen_secret: Просмотрен ли client_secret в админ панели.
         created_at: Дата создания клиента.
     """
     id: UUID = Field(default_factory=uuid4)
@@ -106,20 +116,17 @@ class Client(BaseModel):
     )
     redirect_uris: list[HttpUrl] = Field(default_factory=list)
     scopes: list[str] = Field(default_factory=list)
-    already_seen_secret: bool = False
     created_at: datetime = Field(default_factory=current_datetime)
 
     model_config = ConfigDict(from_attributes=True)
 
-    @property
-    def payload(self) -> dict[str, Any]:
+    def to_payload(self, **kwargs) -> dict[str, Any]:
         """Полезная нагрузка для JWT"""
         return {
             "iss": ISSUER,
             "sub": self.client_id,
-            "aud": self.name,
-            "realm_id": str(self.realm_id),
-            "scope": " ".join(self.scopes)
+            "scope": " ".join(self.scopes),
+            **kwargs
         }
 
     def hash_client_secret(self) -> Client:
@@ -141,12 +148,16 @@ class Client(BaseModel):
     def validate_scopes(cls, scopes: list[str]) -> list[str]:
         return validate_scopes(scopes)
 
+    @field_serializer("client_secret")
+    def serialize_secret(self, client_secret: SecretStr) -> str:
+        return client_secret.get_secret_value()
+
 
 class IdentityProvider(BaseModel):
     """Провайдер аутентификации и регистрации"""
     id: UUID = Field(default_factory=uuid4)
     name: str
-    type: ...
+    type: str
     client_id: str
     client_secret: SecretStr
     scopes: list[str] = Field(default_factory=list)
@@ -163,17 +174,14 @@ class UserIdentity(BaseModel):
 class ClientCredentials(BaseModel):
     """Авторизационные данные клиента"""
     client_id: str
-    client_secret: SecretStr
+    client_secret: str
     expires_at: datetime | None = None
 
     model_config = ConfigDict(from_attributes=True)
 
-
-class Tokens(BaseModel):
-    """JWT токены для авторизации"""
-    access_token: str
-    refresh_token: str | None = None
-    session_id: UUID | None = None
+    @field_validator("client_secret", mode="before")
+    def validate_secret(cls, client_secret: SecretStr) -> str:
+        return client_secret.get_secret_value()
 
 
 class Session(BaseModel):
@@ -184,3 +192,36 @@ class Session(BaseModel):
     user_agent: str | None = None
     ip_address: str | None = None
     last_activity: datetime = Field(default_factory=current_datetime)
+
+
+class Token(BaseModel):
+    access_token: str
+    expires_at: int | float
+
+
+class TokenPair(BaseModel):
+    access_token: str
+    refresh_token: str
+    expires_at: int
+
+
+class Claims(BaseModel):
+    """Базовая модель для интроспекции JWT"""
+    active: bool = False
+    token_type: TokenType | None = None
+    iss: HttpUrl | None = None
+    sub: str | None = None
+    aud: str | None = None
+    exp: int | float | None = None
+    iat: int | float | None = None
+    jti: UUID | None = None
+
+
+class ClientClaims(Claims):
+    realm: str | None = None
+    scope: str | None = None
+
+
+class UserClaims(Claims):
+    realm: str | None = None
+    roles: list[Role] | None = None
