@@ -4,22 +4,22 @@ import logging
 
 from dishka.integrations.fastapi import DishkaRoute
 from dishka.integrations.fastapi import FromDishka as Depends
-from fastapi import APIRouter, status, Form, HTTPException
+from fastapi import APIRouter, Form, HTTPException, status
 
-from ...core.domain import Token, ClientClaims
+from ...core.domain import ClientClaims, Token
 from ...core.enums import GrantType
 from ...core.exceptions import (
     InvalidCredentialsError,
     NotEnabledError,
     PermissionDeniedError,
     UnauthorizedError,
-    UnsupportedGrantTypeError
+    UnsupportedGrantTypeError,
 )
 from ...services import ClientAuthService
 
 logger = logging.getLogger(__name__)
 
-clients_router = APIRouter(prefix="/{realm}/clients", tags=["Clients auth"], route_class=DishkaRoute)
+clients_router = APIRouter(prefix="/{realm}/clients", tags=["Clients 🔐"], route_class=DishkaRoute)
 
 
 @clients_router.post(
@@ -46,7 +46,7 @@ async def issue_token(
             scope=scope,
         )
     except UnsupportedGrantTypeError as e:
-        logger.exception(f"Unsupported grant type: %s", grant_type)
+        logger.exception("Unsupported grant type: %s", grant_type)
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=str(e)
