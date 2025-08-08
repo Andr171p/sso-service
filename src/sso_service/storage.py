@@ -1,4 +1,5 @@
 import time
+from datetime import timedelta
 from uuid import UUID
 
 from redis.asyncio import Redis as AsyncRedis
@@ -20,6 +21,16 @@ class RedisSessionStore(BaseStore[Session]):
         key = f"session:{session_id}"
         data = await self._redis.hgetall(key)
         return Session.model_load(data) if data else None
+
+    async def update(
+            self, session_id: UUID, ttl: timedelta | None = None, **kwargs
+    ) -> Session | None:
+        key = f"session:{session_id}"
+        if not await self._redis.exists(key):
+            return None
+        if ttl:
+            await self._redis.expire(key, ttl)
+        return await self.get(session_id)
 
     async def delete(self, session_id: UUID) -> bool:
         key = f"session:{session_id}"

@@ -1,6 +1,7 @@
 from typing import Generic, TypeVar
 
 from abc import ABC, abstractmethod
+from datetime import timedelta
 from uuid import UUID
 
 from pydantic import BaseModel
@@ -46,8 +47,13 @@ class BaseStore(Generic[T]):
     """Базовый класс хранилища данных,
     параметр T указывает на ресурс над которым нужно провести операции
     """
+
     async def add(self, schema: T) -> None: pass
 
     async def get(self, id: UUID | str) -> T | None: pass
+
+    async def update(
+            self, id: UUID | str, ttl: timedelta | None = None, **kwargs
+    ) -> T | None: pass
 
     async def delete(self, id: UUID | str) -> bool: pass

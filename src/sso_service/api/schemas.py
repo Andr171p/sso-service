@@ -74,3 +74,13 @@ class GroupUpdate(BaseModel):
     name: str | None = None
     description: str | None = None
     roles: list[Role] | None = None
+
+
+class TokenRefresh(BaseModel):
+    """Тело запроса для обновления пары токенов"""
+    refresh_token: str
+
+
+class TokenIntrospect(BaseModel):
+    """Декодирование и валидация токена"""
+    token: str

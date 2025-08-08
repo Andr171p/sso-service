@@ -15,7 +15,9 @@ USER_ACCESS_TOKEN_EXPIRE_IN = timedelta(minutes=15)
 USER_REFRESH_TOKEN_EXPIRE_IN = timedelta(days=7)
 CLIENT_ACCESS_TOKEN_EXPIRE_IN = timedelta(minutes=30)
 # Время истечение пользовательской сессии
-USER_SESSION_EXPIRE_IN = timedelta(days=7)
+SESSION_EXPIRE_IN = timedelta(days=7)
+SESSION_REFRESH_THRESHOLD = timedelta(days=5)
+SESSION_REFRESH_IN = timedelta(days=2)
 # Создатель токенов
 ISSUER = "https://davalka.ru"
 # Роли пользователя по умолчанию

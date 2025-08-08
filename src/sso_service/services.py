@@ -10,7 +10,9 @@ from .core.constants import (
     DEFAULT_ROLES,
     USER_ACCESS_TOKEN_EXPIRE_IN,
     USER_REFRESH_TOKEN_EXPIRE_IN,
-    USER_SESSION_EXPIRE_IN,
+    SESSION_EXPIRE_IN,
+    SESSION_REFRESH_THRESHOLD,
+    SESSION_REFRESH_IN,
 )
 from .core.domain import ClientClaims, Token, TokenPair, UserClaims, User, Session
 from .core.enums import GrantType, TokenType
@@ -95,13 +97,9 @@ class ClientAuthService(BaseAuthService[Token, ClientClaims]):
             raise UnauthorizedError("Invalid token") from None
         if payload.get("realm") is None or payload.get("realm") != realm:
             raise UnauthorizedError("Invalid token in this realm")
-        claims: dict[str, Any] = {}
         if "exp" in payload and payload["exp"] < current_timestamp():
-            claims.update({
-                "active": False, "cause": "Token expired"
-            })
-        claims.update(payload, active=True)
-        return ClientClaims(**claims)
+            return ClientClaims(active=False, cause="Token expired")
+        return ClientClaims(active=True, **payload)
 
 
 class UserAuthService(BaseAuthService[TokenPair, UserClaims]):
@@ -133,7 +131,7 @@ class UserAuthService(BaseAuthService[TokenPair, UserClaims]):
         payload = user.to_payload(realm=realm, roles=roles)
         session = Session(
             user_id=user.id,
-            expires_at=(current_datetime() + USER_SESSION_EXPIRE_IN).timestamp()
+            expires_at=(current_datetime() + SESSION_EXPIRE_IN).timestamp()
         )
         await self.session_store.add(session)
         return self._generate_token_pair(payload, session.session_id)
@@ -191,17 +189,33 @@ class UserAuthService(BaseAuthService[TokenPair, UserClaims]):
             payload = decode_token(token)
         except InvalidTokenError:
             raise UnauthorizedError("Invalid token")
-        claims: dict[str, Any] = {}
-        if payload.get("realm") is None or payload.get("realm") != realm:
-            claims.update({
-                "active": False, "cause": "Invalid token in this realm"
-            })
+        if "token_type" in payload and payload["token_type"] != TokenType.ACCESS:
+            return UserClaims(active=False, cause="Invalid token type")
+        if "realm" not in payload or payload.get("realm") != realm:
+            return UserClaims(active=False, cause="Invalid token in this realm")
         if "exp" in payload and payload["exp"] < current_timestamp():
-            claims.update({
-                "active": False, "cause": "Token expired"
-            })
-        claims.update(payload, active=True)
-        return UserClaims(**claims)
+            return UserClaims(active=False, cause="Token expired")
+        return UserClaims(active=True, **payload)
 
-    async def refresh(self, token: str) -> TokenPair:
-        ...
+    async def refresh(self, token: str, realm: str, session_id: UUID) -> TokenPair:
+        session = await self.session_store.get(session_id)
+        if session is None:
+            raise UnauthorizedError("Session not found")
+        try:
+            payload = decode_token(token)
+        except InvalidTokenError:
+            raise UnauthorizedError("Invalid token")
+        if "token_type" in payload and payload["token_type"] != TokenType.REFRESH:
+            raise UnauthorizedError("Invalid token type")
+        if "realm" in payload and payload["realm"] != realm:
+            raise UnauthorizedError("Invalid token in this realm")
+        if "exp" in payload and payload["exp"] < current_timestamp():
+            raise UnauthorizedError("Token expired")
+        roles = await self._give_roles(realm, payload["sub"])
+        payload["roles"] = roles
+        session_delay = session.expires_at - current_timestamp()
+        if session_delay < SESSION_REFRESH_THRESHOLD:
+            await self.session_store.update(
+                session_id, ttl=session_delay + SESSION_REFRESH_IN
+            )
+        return self._generate_token_pair(payload, session_id)
