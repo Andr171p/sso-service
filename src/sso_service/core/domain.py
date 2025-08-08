@@ -44,7 +44,6 @@ class User(BaseModel):
     username: str | None = None
     password: SecretStr
     active: bool = True
-    roles: list[Role] = Field(default=[Role.USER])
     created_at: datetime = Field(default_factory=current_datetime)
 
     def hash_password(self) -> User:
@@ -60,6 +59,22 @@ class User(BaseModel):
             "sub": self.id,
             **kwargs,
         }
+
+
+class Group(BaseModel):
+    """Ролевые группы для пользователей"""
+    id: UUID = Field(default_factory=uuid4)
+    realm_id: UUID
+    name: str
+    description: str | None = None
+    roles: list[Role]
+    created_at: datetime = Field(default_factory=current_datetime)
+
+
+class UserGroup(BaseModel):
+    """Привязка пользователя к группе"""
+    user_id: UUID
+    group_id: UUID
 
 
 class Realm(BaseModel):
@@ -131,8 +146,9 @@ class Client(BaseModel):
 
     def hash_client_secret(self) -> Client:
         from ..security import hash_secret
-        hashed_client_secret = hash_secret(self.client_secret.get_secret_value())
-        self.client_secret = SecretStr(hashed_client_secret)
+        self.client_secret = SecretStr(
+            hash_secret(self.client_secret.get_secret_value())
+        )
         return self
 
     @model_validator(mode="after")

@@ -20,7 +20,7 @@ class TokenType(StrEnum):
 
 
 class Role(StrEnum):
-    """Глобальные роли пользователя в области"""
+    """Глобальные роли пользователя в рамках области"""
     SUPERADMIN = "superadmin"
     ADMIN = "admin"
     USER = "user"

@@ -6,6 +6,8 @@ from pydantic import EmailStr
 
 from .core.base import BaseAuthService
 from .core.constants import CLIENT_ACCESS_TOKEN_EXPIRE_IN
+from .core.domain import ClientClaims, Token, TokenPair, UserClaims
+from .core.enums import GrantType, TokenType
 from .core.exceptions import (
     InvalidCredentialsError,
     InvalidTokenError,
@@ -14,11 +16,9 @@ from .core.exceptions import (
     UnauthorizedError,
     UnsupportedGrantTypeError,
 )
-from .core.domain import Token, ClientClaims, TokenPair, UserClaims
-from .core.enums import TokenType, GrantType
-from .core.utils import format_scope, current_timestamp, current_datetime
+from .core.utils import current_datetime, current_timestamp, format_scope
 from .database.repository import ClientRepository, UserRepository
-from .security import verify_secret, issue_token, decode_token
+from .security import decode_token, issue_token, verify_secret
 from .storage import RedisSessionStore
 
 
@@ -79,14 +79,14 @@ class ClientAuthService(BaseAuthService[Token, ClientClaims]):
             return None
         return valid_scopes or None
 
-    async def introspect(self, token: str, **kwargs) -> ClientClaims:
+    async def introspect(self, token: str, **kwargs) -> ClientClaims:  # noqa: PLR6301
         realm = kwargs.get("realm")
         if not realm:
             raise ValueError("Realm is required")
         try:
             payload = decode_token(token)
         except InvalidTokenError:
-            raise UnauthorizedError("Invalid token")
+            raise UnauthorizedError("Invalid token") from None
         if payload.get("realm") is None and payload.get("realm") != realm:
             raise UnauthorizedError("Invalid token in this realm")
         claims: dict[str, Any] = {}

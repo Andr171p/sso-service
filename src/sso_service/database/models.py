@@ -22,17 +22,24 @@ class UserModel(Base):
     email_verified: Mapped[bool]
     username: Mapped[str] = mapped_column(nullable=True)
     active: Mapped[bool]
-    roles: Mapped[list["RoleModel"]] = relationship(back_populates="user")
 
 
-class RoleModel(Base):
-    __tablename__ = "roles"
+class GroupModel(Base):
+    __tablename__ = "groups"
+
+    realm_id: Mapped[UUID] = mapped_column(ForeignKey("realms.realm_id"), unique=False)
+    name: Mapped[str]
+    description: Mapped[str | None] = mapped_column(nullable=True)
+    roles: Mapped[list[str]] = mapped_column(ARRAY(String))
+
+
+class UserGroupModel(Base):
+    __tablename__ = "user_groups"
 
     user_id: Mapped[UUID] = mapped_column(ForeignKey("users.id"), unique=False)
-    realm_id: Mapped[UUID] = mapped_column(PG_UUID(as_uuid=True), unique=False)
-    role: Mapped[str]
+    group_id: Mapped[UUID] = mapped_column(ForeignKey("groups.id"), unique=False)
 
-    user: Mapped["UserModel"] = relationship(back_populates="roles")
+    group: Mapped["GroupModel"] = relationship(cascade="all, delete-orphan")
 
 
 class RealmModel(Base):

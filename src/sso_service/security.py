@@ -53,4 +53,4 @@ def decode_token(token: str) -> dict[str, Any]:
             options={"verify_aud": False}
         )
     except jwt.PyJWTError:
-        raise InvalidTokenError("Invalid token")
+        raise InvalidTokenError("Invalid token") from None

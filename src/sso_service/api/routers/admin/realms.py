@@ -7,6 +7,7 @@ from dishka.integrations.fastapi import DishkaRoute
 from dishka.integrations.fastapi import FromDishka as Depends
 from fastapi import APIRouter, HTTPException, Query, status
 
+from src.sso_service.core.domain import Client, Group, Realm
 from src.sso_service.core.exceptions import (
     AlreadyCreatedError,
     CreationError,
@@ -14,10 +15,9 @@ from src.sso_service.core.exceptions import (
     ReadingError,
     UpdateError,
 )
-from src.sso_service.core.domain import Realm, Client
-from src.sso_service.database.repository import RealmRepository, ClientRepository
+from src.sso_service.database.repository import ClientRepository, GroupRepository, RealmRepository
 
-from ...schemas import RealmCreate, RealmUpdate
+from ...schemas import GroupCreate, RealmCreate, RealmUpdate
 
 logger = logging.getLogger(__name__)
 
@@ -79,13 +79,14 @@ async def get_realm(id: UUID, repository: Depends[RealmRepository]) -> Realm:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND, detail="Realm not found"
             ) from None
-        return realm
     except ReadingError:
         logger.exception("Occurred error while reading: {e}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Occurred error while reading realm",
         ) from None
+    else:
+        return realm
 
 
 @realms_router.patch(
@@ -152,4 +153,24 @@ async def get_client_by_realm(
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Occurred error while reading clients in realm",
+        ) from None
+
+
+@realms_router.post(
+    path="/{id}/groups",
+    status_code=status.HTTP_201_CREATED,
+    response_model=Group,
+    summary="Создаёт группу в указанной области"
+)
+async def create_group(
+        id: UUID, group_create: GroupCreate, repository: Depends[GroupRepository]
+) -> Group:
+    try:
+        group = Group(**group_create.model_dump(), realm_id=id)
+        return await repository.create(group)
+    except CreationError:
+        logger.exception("Occurred error while creating group: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Occurred error while creating group",
         ) from None

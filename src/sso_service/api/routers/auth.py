@@ -29,3 +29,11 @@ async def register_user(user: User) -> User: ...
     summary="Аутентифицирует пользователя"
 )
 async def login_user(email: EmailStr, password: str) -> TokenPair: ...
+
+
+@auth_router.post(
+    path="/logout",
+    status_code=status.HTTP_200_OK,
+    summary="Выход пользователя из системы"
+)
+async def logout_user() -> None: ...

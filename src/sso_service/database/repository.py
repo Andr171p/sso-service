@@ -7,7 +7,7 @@ from sqlalchemy import delete, insert, select, update
 from sqlalchemy.exc import IntegrityError, SQLAlchemyError
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from ..core.domain import Client, Realm, User
+from ..core.domain import Client, Realm, User, Group
 from ..core.exceptions import (
     AlreadyCreatedError,
     CreationError,
@@ -16,7 +16,7 @@ from ..core.exceptions import (
     UpdateError,
 )
 from .base import Base
-from .models import ClientModel, RealmModel, UserModel
+from .models import ClientModel, RealmModel, UserModel, GroupModel
 
 Model = TypeVar("Model", bound=Base)
 Schema = TypeVar("Schema", bound=BaseModel)
@@ -152,3 +152,8 @@ class UserRepository(CRUDRepository[UserModel, User]):
         except SQLAlchemyError as e:
             await self.session.rollback()
             raise ReadingError(f"Error while reading: {e}") from e
+
+
+class GroupRepository(CRUDRepository[GroupModel, Group]):
+    model = GroupModel
+    schema = Group

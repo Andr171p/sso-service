@@ -5,7 +5,7 @@ from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict, field_validator, SecretStr
 
-from ..core.enums import ClientType, GrantType
+from ..core.enums import ClientType, GrantType, Role
 
 
 class RealmCreate(BaseModel):
@@ -60,3 +60,17 @@ class ClientUpdate(BaseModel):
     slug: str | None = None
     description: str | None = None
     enabled: bool = True
+
+
+class GroupCreate(BaseModel):
+    """Схема запроса для создания группы"""
+    name: str
+    description: str | None = None
+    roles: list[Role]
+
+
+class GroupUpdate(BaseModel):
+    """Схема запроса для обновления группы"""
+    name: str | None = None
+    description: str | None = None
+    roles: list[Role] | None = None
