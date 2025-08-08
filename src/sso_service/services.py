@@ -5,8 +5,14 @@ from uuid import UUID
 from pydantic import EmailStr
 
 from .core.base import BaseAuthService
-from .core.constants import CLIENT_ACCESS_TOKEN_EXPIRE_IN
-from .core.domain import ClientClaims, Token, TokenPair, UserClaims
+from .core.constants import (
+    CLIENT_ACCESS_TOKEN_EXPIRE_IN,
+    DEFAULT_ROLES,
+    USER_ACCESS_TOKEN_EXPIRE_IN,
+    USER_REFRESH_TOKEN_EXPIRE_IN,
+    USER_SESSION_EXPIRE_IN,
+)
+from .core.domain import ClientClaims, Token, TokenPair, UserClaims, User, Session
 from .core.enums import GrantType, TokenType
 from .core.exceptions import (
     InvalidCredentialsError,
@@ -17,7 +23,7 @@ from .core.exceptions import (
     UnsupportedGrantTypeError,
 )
 from .core.utils import current_datetime, current_timestamp, format_scope
-from .database.repository import ClientRepository, UserRepository
+from .database.repository import ClientRepository, UserRepository, GroupRepository
 from .security import decode_token, issue_token, verify_secret
 from .storage import RedisSessionStore
 
@@ -87,7 +93,7 @@ class ClientAuthService(BaseAuthService[Token, ClientClaims]):
             payload = decode_token(token)
         except InvalidTokenError:
             raise UnauthorizedError("Invalid token") from None
-        if payload.get("realm") is None and payload.get("realm") != realm:
+        if payload.get("realm") is None or payload.get("realm") != realm:
             raise UnauthorizedError("Invalid token in this realm")
         claims: dict[str, Any] = {}
         if "exp" in payload and payload["exp"] < current_timestamp():
@@ -100,26 +106,102 @@ class ClientAuthService(BaseAuthService[Token, ClientClaims]):
 
 class UserAuthService(BaseAuthService[TokenPair, UserClaims]):
     def __init__(
-            self, repository: UserRepository, session_store: RedisSessionStore
+            self,
+            user_repository: UserRepository,
+            group_repository: GroupRepository,
+            session_store: RedisSessionStore
     ) -> None:
-        self.repository = repository
+        self.user_repository = user_repository
+        self.group_repository = group_repository
         self.session_store = session_store
 
+    async def register(self, user: User) -> None:
+        await self.user_repository.create(user)
+        # Some logic ...
+
     async def authenticate(
-            self, realm_id: UUID, email: EmailStr, password: str
+            self, realm: str, email: EmailStr, password: str
     ) -> TokenPair:
-        user = await self.repository.get_by_email(email)
+        user = await self.user_repository.get_by_email(email)
         if user is None:
             raise InvalidCredentialsError("Invalid email")
         if not user.active:
             raise NotEnabledError("User is not active")
         if not verify_secret(password, user.password.get_secret_value()):
             raise InvalidCredentialsError("Invalid password")
-        return TokenPair()
+        roles = await self._give_roles(realm, user.id)
+        payload = user.to_payload(realm=realm, roles=roles)
+        session = Session(
+            user_id=user.id,
+            expires_at=(current_datetime() + USER_SESSION_EXPIRE_IN).timestamp()
+        )
+        await self.session_store.add(session)
+        return self._generate_token_pair(payload, session.session_id)
+
+    async def _give_roles(self, realm: str, user_id: UUID) -> list[str]:
+        """Возвращает список ролей пользователя в указанном realm.
+
+        Получает все группы пользователя в realm и собирает их роли в единый список.
+        Если пользователь не состоит ни в одной группе, возвращает роли по умолчанию.
+
+        :param realm: Идентификатор realm (например: education, admission, ...)
+        :param user_id: Уникальный идентификатор пользователя.
+        :return Список ролей пользователя.
+        """
+        groups = await self.group_repository.get_by_user(realm, user_id)
+        if not groups:
+            return DEFAULT_ROLES
+        roles: set[str] = {role for group in groups for role in group.roles}
+        return list(roles)
+
+    @staticmethod
+    def _generate_token_pair(payload: dict[str, Any], session_id: UUID) -> TokenPair:
+        """Генерирует пару JWT токенов (access и refresh)
+        для аутентифицированного пользователя.
+
+        :param payload: Полезная нагрузка для JWT
+        :param session_id: Уникальный идентификатор сессии
+        :return: Объект с access/refresh и прочими метаданными.
+        """
+        access_token = issue_token(
+            token_type=TokenType.ACCESS,
+            payload=payload,
+            expires_in=USER_ACCESS_TOKEN_EXPIRE_IN
+        )
+        refresh_token = issue_token(
+            token_type=TokenType.REFRESH,
+            payload=payload,
+            expires_in=USER_REFRESH_TOKEN_EXPIRE_IN
+        )
+        return TokenPair(
+            access_token=access_token,
+            refresh_token=refresh_token,
+            session_id=session_id,
+            expires_at=(current_datetime() + USER_ACCESS_TOKEN_EXPIRE_IN).timestamp()
+        )
 
     async def introspect(self, token: str, **kwargs) -> UserClaims:
+        realm: str = kwargs.get("realm")
         session_id: UUID = kwargs.get("session_id")
-        return UserClaims()
+        if not realm:
+            raise ValueError("Realm is required")
+        if await self.session_store.get(session_id) is None:
+            raise UnauthorizedError("Session not found")
+        try:
+            payload = decode_token(token)
+        except InvalidTokenError:
+            raise UnauthorizedError("Invalid token")
+        claims: dict[str, Any] = {}
+        if payload.get("realm") is None or payload.get("realm") != realm:
+            claims.update({
+                "active": False, "cause": "Invalid token in this realm"
+            })
+        if "exp" in payload and payload["exp"] < current_timestamp():
+            claims.update({
+                "active": False, "cause": "Token expired"
+            })
+        claims.update(payload, active=True)
+        return UserClaims(**claims)
 
     async def refresh(self, token: str) -> TokenPair:
         ...

@@ -32,6 +32,8 @@ class GroupModel(Base):
     description: Mapped[str | None] = mapped_column(nullable=True)
     roles: Mapped[list[str]] = mapped_column(ARRAY(String))
 
+    realm: Mapped["RealmModel"] = relationship(back_populates="groups")
+
 
 class UserGroupModel(Base):
     __tablename__ = "user_groups"
@@ -51,6 +53,7 @@ class RealmModel(Base):
     enabled: Mapped[bool]
 
     clients: Mapped[list["ClientModel"]] = relationship(back_populates="realm")
+    groups: Mapped[list["GroupModel"]] = relationship(back_populates="realm")
 
 
 class ClientModel(Base):

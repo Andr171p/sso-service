@@ -54,9 +54,13 @@ class User(BaseModel):
         return self
 
     def to_payload(self, **kwargs) -> dict[str, Any]:
+        realm: str = kwargs.pop("realm")
+        roles: list[str] = kwargs.pop("roles")
         return {
             "iss": ISSUER,
             "sub": self.id,
+            "realm": realm,
+            "roles": " ".join(roles),
             **kwargs,
         }
 
@@ -218,6 +222,7 @@ class Token(BaseModel):
 class TokenPair(BaseModel):
     access_token: str
     refresh_token: str
+    session_id: UUID
     expires_at: int
 
 

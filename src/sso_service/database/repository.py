@@ -4,6 +4,7 @@ from uuid import UUID
 
 from pydantic import BaseModel
 from sqlalchemy import delete, insert, select, update
+from sqlalchemy.orm import joinedload
 from sqlalchemy.exc import IntegrityError, SQLAlchemyError
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -16,7 +17,7 @@ from ..core.exceptions import (
     UpdateError,
 )
 from .base import Base
-from .models import ClientModel, RealmModel, UserModel, GroupModel
+from .models import ClientModel, RealmModel, UserModel, GroupModel, UserGroupModel
 
 Model = TypeVar("Model", bound=Base)
 Schema = TypeVar("Schema", bound=BaseModel)
@@ -157,3 +158,24 @@ class UserRepository(CRUDRepository[UserModel, User]):
 class GroupRepository(CRUDRepository[GroupModel, Group]):
     model = GroupModel
     schema = Group
+
+    async def get_by_user(self, realm_slug: str, user_id: UUID) -> list[Group]:
+        try:
+            stmt = (
+                select(self.model)
+                .join(RealmModel, GroupModel.realm_id == RealmModel.id)
+                .join(UserGroupModel, GroupModel.id == UserGroupModel.group_id)
+                .where(
+                    (UserGroupModel.user_id == user_id) &
+                    (RealmModel.slug == realm_slug)
+                )
+                .options(joinedload(GroupModel.realm))
+            )
+            results = await self.session.execute(stmt)
+            models = results.scalars().all()
+            return [
+                self.schema.model_validate(model) for model in models
+            ]
+        except SQLAlchemyError as e:
+            await self.session.rollback()
+            raise ReadingError(f"Error while reading: {e}") from e

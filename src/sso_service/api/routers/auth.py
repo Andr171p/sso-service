@@ -3,7 +3,7 @@ from typing import Annotated
 import logging
 
 from dishka.integrations.fastapi import DishkaRoute
-from fastapi import APIRouter, status, Form
+from fastapi import APIRouter, status, Form, Response
 from pydantic import EmailStr
 
 from ...core.domain import User, TokenPair
@@ -36,4 +36,4 @@ async def login_user(email: EmailStr, password: str) -> TokenPair: ...
     status_code=status.HTTP_200_OK,
     summary="Выход пользователя из системы"
 )
-async def logout_user() -> None: ...
+async def logout_user(response: Response) -> None: ...
