@@ -1,5 +1,6 @@
 from typing import Any
 
+import logging
 from uuid import UUID
 
 from pydantic import EmailStr
@@ -8,13 +9,13 @@ from .core.base import BaseAuthService
 from .core.constants import (
     CLIENT_ACCESS_TOKEN_EXPIRE_IN,
     DEFAULT_ROLES,
+    SESSION_EXPIRE_IN,
+    SESSION_REFRESH_IN,
+    SESSION_REFRESH_THRESHOLD,
     USER_ACCESS_TOKEN_EXPIRE_IN,
     USER_REFRESH_TOKEN_EXPIRE_IN,
-    SESSION_EXPIRE_IN,
-    SESSION_REFRESH_THRESHOLD,
-    SESSION_REFRESH_IN,
 )
-from .core.domain import ClientClaims, Token, TokenPair, UserClaims, User, Session
+from .core.domain import ClientClaims, Session, Token, TokenPair, User, UserClaims
 from .core.enums import GrantType, TokenType
 from .core.exceptions import (
     InvalidCredentialsError,
@@ -24,10 +25,12 @@ from .core.exceptions import (
     UnauthorizedError,
     UnsupportedGrantTypeError,
 )
-from .core.utils import current_timestamp, format_scope, expires_at
-from .database.repository import ClientRepository, UserRepository, GroupRepository
+from .core.utils import current_timestamp, expires_at, format_scope
+from .database.repository import ClientRepository, GroupRepository, RealmRepository, UserRepository
 from .security import decode_token, issue_token, verify_secret
 from .storage import RedisSessionStore
+
+logger = logging.getLogger(__name__)
 
 
 class ClientAuthService(BaseAuthService[Token, ClientClaims]):
@@ -105,10 +108,12 @@ class UserAuthService(BaseAuthService[TokenPair, UserClaims]):
             self,
             user_repository: UserRepository,
             group_repository: GroupRepository,
+            realm_repository: RealmRepository,
             session_store: RedisSessionStore
     ) -> None:
         self.user_repository = user_repository
         self.group_repository = group_repository
+        self.realm_repository = realm_repository
         self.session_store = session_store
 
     async def register(self, user: User, realm: str) -> User:
@@ -187,7 +192,7 @@ class UserAuthService(BaseAuthService[TokenPair, UserClaims]):
         try:
             payload = decode_token(token)
         except InvalidTokenError:
-            raise UnauthorizedError("Invalid token")
+            raise UnauthorizedError("Invalid token") from None
         if "token_type" in payload and payload["token_type"] != TokenType.ACCESS:
             return UserClaims(active=False, cause="Invalid token type")
         if "realm" not in payload or payload.get("realm") != realm:
@@ -197,24 +202,76 @@ class UserAuthService(BaseAuthService[TokenPair, UserClaims]):
         return UserClaims(active=True, **payload)
 
     async def refresh(self, token: str, realm: str, session_id: UUID) -> TokenPair:
+        """Выдаёт новую пару токенов access и refresh,
+        продлевает пользовательскую сессию.
+
+        :param token: Refresh токен пользователя.
+        :param realm: Текущая область в которой находится пользователь.
+        :param session_id: Текущая сессия пользователя.
+        :return: Новая пара токенов access и refresh.
+        """
         session = await self.session_store.get(session_id)
         if session is None:
-            raise UnauthorizedError("Session not found")
-        try:
-            payload = decode_token(token)
-        except InvalidTokenError:
-            raise UnauthorizedError("Invalid token")
-        if "token_type" in payload and payload["token_type"] != TokenType.REFRESH:
-            raise UnauthorizedError("Invalid token type")
-        if "realm" in payload and payload["realm"] != realm:
-            raise UnauthorizedError("Invalid token in this realm")
-        if "exp" in payload and payload["exp"] < current_timestamp():
-            raise UnauthorizedError("Token expired")
-        roles = await self._give_roles(realm, payload["sub"])
-        payload["roles"] = roles
+            raise UnauthorizedError("Session not found or expired")
+        claims = await self.introspect(token, realm=realm, session_id=session_id)
+        if not claims.active:
+            raise UnauthorizedError(claims.cause)
+        roles = await self._give_roles(realm, UUID(claims.sub))
+        claims.roles = roles
         session_delay = session.expires_at - current_timestamp()
         if session_delay < SESSION_REFRESH_THRESHOLD:
             await self.session_store.update(
                 session_id, ttl=session_delay + SESSION_REFRESH_IN
             )
+        return self._generate_token_pair(
+            claims.model_dump(exclude_none=True), session_id
+        )
+
+    async def switch_realm(
+            self,
+            current_realm: str,
+            target_realm: str,
+            refresh_token: str,
+            session_id: UUID | str
+    ) -> TokenPair:
+        """Осуществляет переход пользователя из одного realm в другой
+        без повторной аутентификации.
+
+        :param current_realm: Текущий realm в котором находится пользователь.
+        :param target_realm: Realm в который нужно перейти.
+        :param refresh_token: Refresh токен пользователя.
+        :param session_id: Текущая сессия.
+        :return: Новая парата токенов access и refresh.
+        """
+        if current_realm == target_realm:
+            raise ValueError("Realms must be different!")
+        session = await self.session_store.get(session_id)
+        if not session:
+            raise UnauthorizedError("Invalid session or session expired")
+        claims = await self.introspect(
+            refresh_token, realm=current_realm, session_id=session_id
+        )
+        if not claims.active:
+            raise UnauthorizedError(claims.cause)
+        if not await self._can_switch_realm(target_realm):
+            raise PermissionDeniedError("Realm switching not allowed")
+        user_id = UUID(claims.sub)
+        roles = await self._give_roles(target_realm, user_id)
+        user = await self.user_repository.read(user_id)
+        payload = user.to_payload(realm=target_realm, roles=roles)
         return self._generate_token_pair(payload, session_id)
+
+    async def _can_switch_realm(self, target_realm: str) -> bool:
+        """Проверяет возможность перехода в realm.
+
+        :param target_realm: Realm в который нужно перейти.
+        :return: True если такая возможность есть, False если нет.
+        """
+        realm = await self.realm_repository.get_by_slug(target_realm)
+        if not realm:
+            logger.warning("Realm doesn't exists!")
+            return False
+        if not realm.enabled:
+            logger.warning("Realm is not enabled for switching!")
+            return False
+        return True

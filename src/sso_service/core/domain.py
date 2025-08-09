@@ -59,6 +59,8 @@ class User(BaseModel):
         return {
             "iss": ISSUER,
             "sub": self.id,
+            "email": self.email,
+            "email_verified": self.email_verified,
             "realm": realm,
             "roles": " ".join(roles),
             **kwargs,
@@ -229,6 +231,7 @@ class TokenPair(BaseModel):
 class Claims(BaseModel):
     """Базовая модель для интроспекции JWT"""
     active: bool = False
+    cause: str | None = None
     token_type: TokenType | None = None
     iss: HttpUrl | None = None
     sub: str | None = None

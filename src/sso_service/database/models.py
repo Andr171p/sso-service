@@ -27,7 +27,7 @@ class UserModel(Base):
 class GroupModel(Base):
     __tablename__ = "groups"
 
-    realm_id: Mapped[UUID] = mapped_column(ForeignKey("realms.realm_id"), unique=False)
+    realm_id: Mapped[UUID] = mapped_column(ForeignKey("realms.id"), unique=False)
     name: Mapped[str]
     description: Mapped[str | None] = mapped_column(nullable=True)
     roles: Mapped[list[str]] = mapped_column(ARRAY(String))

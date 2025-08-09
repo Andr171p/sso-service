@@ -12,10 +12,11 @@ from ...core.exceptions import (
     InvalidCredentialsError,
     NotEnabledError,
     UnauthorizedError,
+    PermissionDeniedError,
 )
 from ...services import UserAuthService
 from ...storage import RedisSessionStore
-from ..schemas import TokenIntrospect, TokenRefresh, UserLogin
+from ..schemas import TokenIntrospect, TokenRefresh, UserLogin, UserRealmSwitch
 
 logger = logging.getLogger(__name__)
 
@@ -162,3 +163,40 @@ async def logout_user(
             detail="Session expired, maybe already logout"
         ) from None
     response.delete_cookie("session_id")
+
+
+@auth_router.post(
+    path="/switch-realm",
+    status_code=status.HTTP_200_OK,
+    response_model=TokenPair,
+    response_model_exclude={"session_id"},
+    summary="Осуществляет переход пользователя из одного realm в другой"
+)
+async def switch_realm(
+        realm: str,
+        user: UserRealmSwitch,
+        request: Request,
+        service: Depends[UserAuthService]
+) -> TokenPair:
+    session_id = request.cookies.get("session_id")
+    if session_id is None:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED, detail="Session id is missing in cookies"
+        ) from None
+    try:
+        return await service.switch_realm(
+            current_realm=realm,
+            target_realm=user.target_realm,
+            refresh_token=user.refresh_token,
+            session_id=session_id
+        )
+    except UnauthorizedError as e:
+        logger.exception("{e}")
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED, detail=str(e)
+        ) from e
+    except PermissionDeniedError as e:
+        logger.exception("{e}")
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN, detail=str(e)
+        ) from e

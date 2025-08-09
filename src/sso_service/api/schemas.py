@@ -90,3 +90,9 @@ class UserLogin(BaseModel):
     """Аутентификация пользователя"""
     email: EmailStr
     password: str
+
+
+class UserRealmSwitch(BaseModel):
+    """Переход пользователя из одного realm в другой"""
+    target_realm: str
+    refresh_token: str
