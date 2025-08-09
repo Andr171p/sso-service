@@ -1,13 +1,10 @@
-from typing import Annotated
-
 import logging
 
 from dishka.integrations.fastapi import DishkaRoute
 from dishka.integrations.fastapi import FromDishka as Depends
-from fastapi import APIRouter, Form, HTTPException, status
+from fastapi import APIRouter, HTTPException, status
 
 from ...core.domain import ClientClaims, Token
-from ...core.enums import GrantType
 from ...core.exceptions import (
     InvalidCredentialsError,
     NotEnabledError,
@@ -16,6 +13,7 @@ from ...core.exceptions import (
     UnsupportedGrantTypeError,
 )
 from ...services import ClientAuthService
+from ..schemas import ClientCredentials, TokenIntrospect
 
 logger = logging.getLogger(__name__)
 
@@ -31,22 +29,19 @@ oauth_router = APIRouter(prefix="/{realm}/oauth", tags=["OAuth"], route_class=Di
 )
 async def issue_token(
         realm: str,
-        grant_type: Annotated[GrantType, Form(...)],
-        client_id: Annotated[str, Form(...)],
-        client_secret: Annotated[str, Form(...)],
-        scope: Annotated[str, Form(...)],
+        credentials: ClientCredentials,
         service: Depends[ClientAuthService]
 ) -> Token:
     try:
         token = await service.authenticate(
             realm=realm,
-            grant_type=grant_type,
-            client_id=client_id,
-            client_secret=client_secret,
-            scope=scope,
+            grant_type=credentials.grant_type,
+            client_id=credentials.client_id,
+            client_secret=credentials.client_secret,
+            scope=credentials.scope,
         )
     except UnsupportedGrantTypeError as e:
-        logger.exception("Unsupported grant type: %s", grant_type)
+        logger.exception("Unsupported grant type: %s", credentials.grant_type)
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=str(e)
@@ -76,11 +71,11 @@ async def issue_token(
 )
 async def introspect_token(
         realm: str,
-        token: Annotated[str, Form(...)],
+        token: TokenIntrospect,
         service: Depends[ClientAuthService]
 ) -> ClientClaims:
     try:
-        return await service.introspect(token, realm=realm)
+        return await service.introspect(token.token, realm=realm)
     except UnauthorizedError as e:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,

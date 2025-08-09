@@ -193,19 +193,6 @@ class UserIdentity(BaseModel):
     provider_user_id: UUID
 
 
-class ClientCredentials(BaseModel):
-    """Авторизационные данные клиента"""
-    client_id: str
-    client_secret: str
-    expires_at: datetime | None = None
-
-    model_config = ConfigDict(from_attributes=True)
-
-    @field_validator("client_secret", mode="before")
-    def validate_secret(cls, client_secret: SecretStr) -> str:
-        return client_secret.get_secret_value()
-
-
 class Session(BaseModel):
     """Пользовательская сессия в SSO"""
     session_id: UUID = Field(default_factory=uuid4)

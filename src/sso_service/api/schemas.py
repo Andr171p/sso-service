@@ -76,6 +76,14 @@ class GroupUpdate(BaseModel):
     roles: list[Role] | None = None
 
 
+class ClientCredentials(BaseModel):
+    """Получение токена (server2server аутентификация)"""
+    grant_type: GrantType
+    client_id: str
+    client_secret: str
+    scope: str
+
+
 class TokenRefresh(BaseModel):
     """Тело запроса для обновления пары токенов"""
     refresh_token: str
