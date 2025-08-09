@@ -23,7 +23,7 @@ from .utils import (
     current_datetime,
     validate_scopes,
     generate_public_id,
-    generate_secret
+    generate_secret, current_timestamp
 )
 
 
@@ -46,6 +46,8 @@ class User(BaseModel):
     active: bool = True
     created_at: datetime = Field(default_factory=current_datetime)
 
+    model_config = ConfigDict(from_attributes=True)
+
     def hash_password(self) -> User:
         from ..security import hash_secret
         self.password = SecretStr(
@@ -53,12 +55,16 @@ class User(BaseModel):
         )
         return self
 
+    @field_serializer("password")
+    def serialize_secret(self, password: SecretStr) -> str:
+        return password.get_secret_value()
+
     def to_payload(self, **kwargs) -> dict[str, Any]:
         realm: str = kwargs.pop("realm")
         roles: list[str] = kwargs.pop("roles")
         return {
             "iss": ISSUER,
-            "sub": self.id,
+            "sub": str(self.id),
             "email": self.email,
             "email_verified": self.email_verified,
             "realm": realm,
@@ -75,6 +81,8 @@ class Group(BaseModel):
     description: str | None = None
     roles: list[Role]
     created_at: datetime = Field(default_factory=current_datetime)
+
+    model_config = ConfigDict(from_attributes=True)
 
 
 class UserGroup(BaseModel):
@@ -184,6 +192,8 @@ class IdentityProvider(BaseModel):
     client_secret: SecretStr
     scopes: list[str] = Field(default_factory=list)
 
+    model_config = ConfigDict(from_attributes=True)
+
 
 class UserIdentity(BaseModel):
     """Привязка аккаунта пользователя"""
@@ -191,6 +201,8 @@ class UserIdentity(BaseModel):
     user_id: UUID
     provider_id: UUID
     provider_user_id: UUID
+
+    model_config = ConfigDict(from_attributes=True)
 
 
 class Session(BaseModel):
@@ -200,7 +212,15 @@ class Session(BaseModel):
     expires_at: int | float
     user_agent: str | None = None
     ip_address: str | None = None
-    last_activity: datetime = Field(default_factory=current_datetime)
+    last_activity: float = Field(default_factory=current_timestamp)
+
+    @field_serializer("session_id")
+    def serialize_session_id(self, session_id: UUID) -> str:
+        return str(session_id)
+
+    @field_serializer("user_id")
+    def serialize_user_id(self, user_id: UUID) -> str:
+        return str(user_id)
 
 
 class Token(BaseModel):
@@ -227,6 +247,12 @@ class Claims(BaseModel):
     iat: int | float | None = None
     jti: UUID | None = None
 
+    model_config = ConfigDict(from_attributes=True)
+
+    @field_serializer("iss")
+    def serialize_iss(self, iss: HttpUrl) -> str:
+        return str(iss)
+
 
 class ClientClaims(Claims):
     realm: str | None = None
@@ -236,3 +262,9 @@ class ClientClaims(Claims):
 class UserClaims(Claims):
     realm: str | None = None
     roles: list[Role] | None = None
+
+    @field_validator("roles", mode="before")
+    def validate_roles(cls, roles: str | list[Role]) -> list[Role]:
+        if isinstance(roles, list):
+            return roles
+        return [Role(role) for role in roles.split(" ")]

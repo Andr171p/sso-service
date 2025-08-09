@@ -1,4 +1,5 @@
 import time
+import json
 from datetime import timedelta
 from uuid import UUID
 
@@ -14,13 +15,18 @@ class RedisSessionStore(BaseStore[Session]):
 
     async def add(self, session: Session) -> None:
         key = f"session:{session.session_id}"
-        await self._redis.hset(key, mapping=session.model_dump())
+        await self._redis.set(key, session.model_dump_json(exclude_none=True))
+        # await self._redis.hmset(key, mapping=session.model_dump(exclude_none=True))
         await self._redis.expire(key, time=int(session.expires_at - time.time()))
 
     async def get(self, session_id: UUID) -> Session | None:
         key = f"session:{session_id}"
-        data = await self._redis.hgetall(key)
-        return Session.model_load(data) if data else None
+        data = await self._redis.get(key)
+        if data is None:
+            return None
+        json_string = data.decode("utf-8")
+        # data = await self._redis.hgetall(key)
+        return Session.model_validate_json(json_string)
 
     async def update(
             self, session_id: UUID, ttl: timedelta | None = None, **kwargs

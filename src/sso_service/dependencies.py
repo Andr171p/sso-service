@@ -5,8 +5,13 @@ from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 from redis.asyncio import Redis as AsyncRedis
 
 from .database.base import create_sessionmaker
-from .database.repository import ClientRepository, RealmRepository
-from .services import ClientAuthService
+from .database.repository import (
+    ClientRepository,
+    RealmRepository,
+    UserRepository,
+    GroupRepository
+)
+from .services import ClientAuthService, UserAuthService
 from .storage import RedisSessionStore
 from .settings import Settings, settings
 
@@ -39,6 +44,14 @@ class AppProvider(Provider):
     def get_client_repository(self, session: AsyncSession) -> ClientRepository:  # noqa: PLR6301
         return ClientRepository(session)
 
+    @provide(scope=Scope.REQUEST)
+    def get_user_repository(self, session: AsyncSession) -> UserRepository:
+        return UserRepository(session)
+
+    @provide(scope=Scope.REQUEST)
+    def get_group_repository(self, session: AsyncSession) -> GroupRepository:
+        return GroupRepository(session)
+
     @provide(scope=Scope.APP)
     def get_session_store(self, redis: AsyncRedis) -> RedisSessionStore:
         return RedisSessionStore(redis)
@@ -46,6 +59,21 @@ class AppProvider(Provider):
     @provide(scope=Scope.REQUEST)
     def get_client_auth_service(self, repository: ClientRepository) -> ClientAuthService:
         return ClientAuthService(repository)
+
+    @provide(scope=Scope.REQUEST)
+    def get_user_auth_service(
+            self,
+            user_repository: UserRepository,
+            group_repository: GroupRepository,
+            realm_repository: RealmRepository,
+            session_store: RedisSessionStore
+    ) -> UserAuthService:
+        return UserAuthService(
+            user_repository=user_repository,
+            group_repository=group_repository,
+            realm_repository=realm_repository,
+            session_store=session_store
+        )
 
 
 container = make_async_container(AppProvider(), context={Settings: settings})

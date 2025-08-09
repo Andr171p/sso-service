@@ -12,7 +12,8 @@ from src.sso_service.database.models import (
     RealmModel,
     ClientModel,
     UserModel,
-    RoleModel,
+    UserGroupModel,
+    GroupModel,
     IdentityProviderModel,
     UserIdentityModel
 )

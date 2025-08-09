@@ -191,13 +191,13 @@ class UserAuthService(BaseAuthService[TokenPair, UserClaims]):
             payload = decode_token(token)
         except InvalidTokenError:
             raise UnauthorizedError("Invalid token") from None
-        if "token_type" in payload and payload["token_type"] != TokenType.ACCESS:
-            return UserClaims(active=False, cause="Invalid token type")
+        # if "token_type" in payload and payload["token_type"] != TokenType.ACCESS:
+        #    return UserClaims(active=False, cause="Invalid token type")
         if "realm" not in payload or payload.get("realm") != realm:
             return UserClaims(active=False, cause="Invalid token in this realm")
         if "exp" in payload and payload["exp"] < current_timestamp():
             return UserClaims(active=False, cause="Token expired")
-        return UserClaims(active=True, **payload)
+        return UserClaims(**{"active": True, **payload})
 
     async def refresh(self, token: str, realm: str, session_id: UUID) -> TokenPair:
         """Выдаёт новую пару токенов access и refresh,
@@ -217,7 +217,7 @@ class UserAuthService(BaseAuthService[TokenPair, UserClaims]):
         roles = await self._give_roles(realm, UUID(claims.sub))
         claims.roles = roles
         session_delay = session.expires_at - current_timestamp()
-        if session_delay < SESSION_REFRESH_THRESHOLD:
+        if session_delay < SESSION_REFRESH_THRESHOLD.total_seconds():
             await self.session_store.update(
                 session_id, ttl=session_delay + SESSION_REFRESH_IN
             )

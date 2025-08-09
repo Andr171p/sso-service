@@ -20,8 +20,14 @@ class UserModel(Base):
 
     email: Mapped[str] = mapped_column(nullable=True)
     email_verified: Mapped[bool]
-    username: Mapped[str] = mapped_column(nullable=True)
+    username: Mapped[str | None] = mapped_column(nullable=True)
+    password: Mapped[str]
     active: Mapped[bool]
+
+    user_groups: Mapped[list["UserGroupModel"]] = relationship(
+        back_populates="user",
+        cascade="all, delete-orphan"
+    )
 
 
 class GroupModel(Base):
@@ -33,6 +39,11 @@ class GroupModel(Base):
     roles: Mapped[list[str]] = mapped_column(ARRAY(String))
 
     realm: Mapped["RealmModel"] = relationship(back_populates="groups")
+    user_groups: Mapped[list["UserGroupModel"]] = relationship(
+        back_populates="group",
+        cascade="all, delete-orphan",
+        single_parent=True
+    )
 
 
 class UserGroupModel(Base):
@@ -41,7 +52,12 @@ class UserGroupModel(Base):
     user_id: Mapped[UUID] = mapped_column(ForeignKey("users.id"), unique=False)
     group_id: Mapped[UUID] = mapped_column(ForeignKey("groups.id"), unique=False)
 
-    group: Mapped["GroupModel"] = relationship(cascade="all, delete-orphan")
+    group: Mapped["GroupModel"] = relationship(back_populates="user_groups")
+    user: Mapped["UserModel"] = relationship(back_populates="user_groups")
+
+    __table_args__ = (
+        UniqueConstraint("user_id", "group_id", name="user_group_uc"),
+    )
 
 
 class RealmModel(Base):

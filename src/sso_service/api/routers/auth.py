@@ -63,6 +63,7 @@ async def login_user(
     path="/introspect",
     status_code=status.HTTP_200_OK,
     response_model=UserClaims,
+    response_model_exclude_none=True,
     summary="Декодирует и валидирует токен"
 )
 async def introspect_token(
@@ -100,7 +101,7 @@ async def refresh_token(
 ) -> TokenPair:
     session_id = request.cookies.get("session_id")
     try:
-        token_pair = await service.refresh(token.token, realm, UUID(session_id))
+        token_pair = await service.refresh(token.refresh_token, realm, UUID(session_id))
         response.set_cookie(
             key="session_id",
             value=str(token_pair.session_id),
