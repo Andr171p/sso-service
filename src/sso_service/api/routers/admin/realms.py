@@ -9,7 +9,7 @@ from fastapi import APIRouter, HTTPException, Query, status
 
 from src.sso_service.core.domain import Client, Group, Realm
 from src.sso_service.core.exceptions import (
-    AlreadyCreatedError,
+    AlreadyExistsError,
     CreationError,
     DeletionError,
     ReadingError,
@@ -33,7 +33,7 @@ realms_router = APIRouter(prefix="/realms", tags=["Realms"], route_class=DishkaR
 async def create_realm(realm_create: RealmCreate, repository: Depends[RealmRepository]) -> Realm:
     try:
         return await repository.create(Realm.model_validate(realm_create))
-    except AlreadyCreatedError:
+    except AlreadyExistsError:
         logger.exception("Realm already exists: {e}")
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT, detail="This realm is already registered"

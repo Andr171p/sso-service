@@ -94,6 +94,19 @@ class TokenIntrospect(BaseModel):
     token: str
 
 
+class UserRegistration(BaseModel):
+    """Регистрация пользователя"""
+    email: EmailStr
+    username: str | None = None
+    password: str
+
+    model_config = ConfigDict(from_attributes=True)
+
+    @field_validator("password")
+    def validate_password(cls, password: str) -> SecretStr:
+        return SecretStr(password)
+
+
 class UserLogin(BaseModel):
     """Аутентификация пользователя"""
     email: EmailStr

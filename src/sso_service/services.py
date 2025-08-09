@@ -116,10 +116,8 @@ class UserAuthService(BaseAuthService[TokenPair, UserClaims]):
         self.realm_repository = realm_repository
         self.session_store = session_store
 
-    async def register(self, user: User, realm: str) -> User:
-        created_user = await self.user_repository.create(user)
-        # Some logic ...
-        return created_user
+    async def register(self, user: User) -> User:
+        return await self.user_repository.create(user)
 
     async def authenticate(
             self, realm: str, email: EmailStr, password: str

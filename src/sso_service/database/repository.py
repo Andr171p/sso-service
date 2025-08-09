@@ -10,7 +10,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from ..core.domain import Client, Realm, User, Group
 from ..core.exceptions import (
-    AlreadyCreatedError,
+    AlreadyExistsError,
     CreationError,
     DeletionError,
     ReadingError,
@@ -39,7 +39,7 @@ class CRUDRepository[Model: Base, Schema: BaseModel]:
             return self.schema.model_validate(created_model)
         except IntegrityError as e:
             await self.session.rollback()
-            raise AlreadyCreatedError(f"Already created error: {e}") from e
+            raise AlreadyExistsError(f"Already created error: {e}") from e
         except SQLAlchemyError as e:
             await self.session.rollback()
             raise CreationError(f"Error while creation: {e}") from e

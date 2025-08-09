@@ -6,9 +6,8 @@ from dishka.integrations.fastapi import FromDishka as Depends
 from fastapi import APIRouter, HTTPException, Request, Response, status
 
 from ...core.constants import SESSION_EXPIRE_IN
-from ...core.domain import TokenPair, User, UserClaims
+from ...core.domain import TokenPair, UserClaims
 from ...core.exceptions import (
-    CreationError,
     InvalidCredentialsError,
     NotEnabledError,
     UnauthorizedError,
@@ -21,26 +20,6 @@ from ..schemas import TokenIntrospect, TokenRefresh, UserLogin, UserRealmSwitch
 logger = logging.getLogger(__name__)
 
 auth_router = APIRouter(prefix="/{realm}/auth", tags=["Auth"], route_class=DishkaRoute)
-
-
-@auth_router.post(
-    path="/register",
-    status_code=status.HTTP_201_CREATED,
-    response_model=User,
-    response_model_exclude={"password"},
-    summary="Осуществляет регистрацию пользователя",
-)
-async def register_user(
-        realm: str, user: User, service: Depends[UserAuthService]
-) -> User:
-    try:
-        return await service.register(user, realm)
-    except CreationError:
-        logger.exception("{e}")
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Error while user registration"
-        ) from None
 
 
 @auth_router.post(
