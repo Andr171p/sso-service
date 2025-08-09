@@ -14,7 +14,7 @@ from pydantic import (
     SecretStr,
     field_validator,
     field_serializer,
-    model_validator
+    model_validator,
 )
 
 from .constants import MAX_NAME_LENGTH, MIN_GRANT_TYPES_COUNT, ISSUER

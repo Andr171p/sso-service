@@ -113,9 +113,10 @@ class UserAuthService(BaseAuthService[TokenPair, UserClaims]):
         self.group_repository = group_repository
         self.session_store = session_store
 
-    async def register(self, user: User) -> None:
-        await self.user_repository.create(user)
+    async def register(self, user: User, realm: str) -> User:
+        created_user = await self.user_repository.create(user)
         # Some logic ...
+        return created_user
 
     async def authenticate(
             self, realm: str, email: EmailStr, password: str
@@ -183,7 +184,7 @@ class UserAuthService(BaseAuthService[TokenPair, UserClaims]):
         session_id: UUID = kwargs.get("session_id")
         if not realm:
             raise ValueError("Realm is required")
-        if await self.session_store.get(session_id) is None:
+        if await self.session_store.get(session_id) is None or session_id is None:
             raise UnauthorizedError("Session not found")
         try:
             payload = decode_token(token)

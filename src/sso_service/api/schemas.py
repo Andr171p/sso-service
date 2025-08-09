@@ -3,7 +3,7 @@ from __future__ import annotations
 from datetime import datetime
 from uuid import UUID
 
-from pydantic import BaseModel, ConfigDict, field_validator, SecretStr
+from pydantic import BaseModel, ConfigDict, field_validator, SecretStr, EmailStr
 
 from ..core.enums import ClientType, GrantType, Role
 
@@ -84,3 +84,9 @@ class TokenRefresh(BaseModel):
 class TokenIntrospect(BaseModel):
     """Декодирование и валидация токена"""
     token: str
+
+
+class UserLogin(BaseModel):
+    """Аутентификация пользователя"""
+    email: EmailStr
+    password: str
