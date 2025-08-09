@@ -24,7 +24,7 @@ from .core.exceptions import (
     UnauthorizedError,
     UnsupportedGrantTypeError,
 )
-from .core.utils import current_datetime, current_timestamp, format_scope
+from .core.utils import current_timestamp, format_scope, expires_at
 from .database.repository import ClientRepository, UserRepository, GroupRepository
 from .security import decode_token, issue_token, verify_secret
 from .storage import RedisSessionStore
@@ -61,9 +61,7 @@ class ClientAuthService(BaseAuthService[Token, ClientClaims]):
         )
         return Token(
             access_token=access_token,
-            expires_at=(
-                    current_datetime() + CLIENT_ACCESS_TOKEN_EXPIRE_IN
-            ).timestamp(),
+            expires_at=expires_at(CLIENT_ACCESS_TOKEN_EXPIRE_IN)
         )
 
     @staticmethod
@@ -132,7 +130,7 @@ class UserAuthService(BaseAuthService[TokenPair, UserClaims]):
         payload = user.to_payload(realm=realm, roles=roles)
         session = Session(
             user_id=user.id,
-            expires_at=(current_datetime() + SESSION_EXPIRE_IN).timestamp()
+            expires_at=expires_at(SESSION_EXPIRE_IN)
         )
         await self.session_store.add(session)
         return self._generate_token_pair(payload, session.session_id)
@@ -176,7 +174,7 @@ class UserAuthService(BaseAuthService[TokenPair, UserClaims]):
             access_token=access_token,
             refresh_token=refresh_token,
             session_id=session_id,
-            expires_at=(current_datetime() + USER_ACCESS_TOKEN_EXPIRE_IN).timestamp()
+            expires_at=expires_at(USER_ACCESS_TOKEN_EXPIRE_IN)
         )
 
     async def introspect(self, token: str, **kwargs) -> UserClaims:

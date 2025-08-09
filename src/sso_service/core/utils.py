@@ -2,6 +2,7 @@ import secrets
 import string
 from datetime import datetime
 
+from asyncpg.pgproto.pgproto import timedelta
 from pydantic import SecretStr
 
 from .constants import BYTES_COUNT
@@ -39,3 +40,8 @@ def current_datetime() -> datetime:
 def current_timestamp() -> float:
     from ..settings import moscow_tz
     return datetime.now(tz=moscow_tz).timestamp()
+
+
+def expires_at(expires_in: timedelta) -> int:
+    """Рассчитывает время истечения"""
+    return int((current_datetime() + expires_in).timestamp())

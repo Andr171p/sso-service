@@ -3,19 +3,19 @@ from uuid import UUID
 
 from dishka.integrations.fastapi import DishkaRoute
 from dishka.integrations.fastapi import FromDishka as Depends
-from fastapi import APIRouter, status, Request, Response, HTTPException
+from fastapi import APIRouter, HTTPException, Request, Response, status
 
 from ...core.constants import SESSION_EXPIRE_IN
-from ...core.domain import User, TokenPair, UserClaims
+from ...core.domain import TokenPair, User, UserClaims
 from ...core.exceptions import (
     CreationError,
     InvalidCredentialsError,
+    NotEnabledError,
     UnauthorizedError,
-    NotEnabledError
 )
 from ...services import UserAuthService
 from ...storage import RedisSessionStore
-from ..schemas import TokenRefresh, TokenIntrospect, UserLogin
+from ..schemas import TokenIntrospect, TokenRefresh, UserLogin
 
 logger = logging.getLogger(__name__)
 
