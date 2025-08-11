@@ -144,6 +144,19 @@ class UserRepository(CRUDRepository[UserModel, User]):
     model = UserModel
     schema = User
 
+    async def read_all(self, page: int, limit: int) -> list[User]:
+        try:
+            offset = (page - 1) * limit
+            stmt = select(self.model).offset(offset).limit(limit)
+            results = await self.session.execute(stmt)
+            models = results.scalars().all()
+            return [
+                self.schema.model_validate(model) for model in models
+            ]
+        except SQLAlchemyError as e:
+            await self.session.rollback()
+            raise ReadingError(f"Error while reading: {e}") from e
+
     async def get_by_email(self, email: str) -> User | None:
         try:
             stmt = select(UserModel).where(self.model.email == email)

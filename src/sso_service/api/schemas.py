@@ -5,7 +5,7 @@ from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict, field_validator, SecretStr, EmailStr
 
-from ..core.enums import ClientType, GrantType, Role
+from ..core.enums import ClientType, GrantType, Role, UserStatus
 
 
 class RealmCreate(BaseModel):
@@ -117,3 +117,14 @@ class UserRealmSwitch(BaseModel):
     """Переход пользователя из одного realm в другой"""
     target_realm: str
     refresh_token: str
+
+
+class UserUpdate(BaseModel):
+    """Обновление статуса пользователя"""
+    status: UserStatus
+
+    @field_validator("status", mode="before")
+    def validate_status(cls, status: UserStatus) -> UserStatus:
+        if status in (UserStatus.REGISTERED, UserStatus.ACTIVE):
+            raise ValueError("Invalid status")
+        return status

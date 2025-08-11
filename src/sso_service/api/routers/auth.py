@@ -121,7 +121,7 @@ async def refresh_token(
 
 @auth_router.post(
     path="/logout",
-    status_code=status.HTTP_200_OK,
+    status_code=status.HTTP_204_NO_CONTENT,
     summary="Выход пользователя из системы"
 )
 async def logout_user(
