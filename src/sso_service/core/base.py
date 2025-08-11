@@ -52,6 +52,8 @@ class BaseStore(Generic[T]):
 
     async def get(self, id: UUID | str) -> T | None: pass
 
+    async def exists(self, id: UUID | str) -> bool: pass
+
     async def update(
             self, id: UUID | str, ttl: timedelta | None = None, **kwargs
     ) -> T | None: pass

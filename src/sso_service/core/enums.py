@@ -25,3 +25,16 @@ class Role(StrEnum):
     ADMIN = "admin"
     USER = "user"
     GUEST = "guest"
+
+
+class UserStatus(StrEnum):
+    """Статусы пользователя
+
+    Attributes:
+        REGISTERED: Зарегистрированный пользователь (ещё не подтверждён email).
+        ACTIVE: Активны пользователь (после подтверждения email).
+        BANNED: Забаненный пользователь.
+    """
+    REGISTERED = "registered"
+    ACTIVE = "active"
+    BANNED = "banned"

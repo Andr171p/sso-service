@@ -1,5 +1,4 @@
 import time
-import json
 from datetime import timedelta
 from uuid import UUID
 
@@ -27,6 +26,10 @@ class RedisSessionStore(BaseStore[Session]):
         json_string = data.decode("utf-8")
         # data = await self._redis.hgetall(key)
         return Session.model_validate_json(json_string)
+
+    async def exists(self, session_id: UUID) -> bool:
+        key = f"session:{session_id}"
+        return await self._redis.exists(key)
 
     async def update(
             self, session_id: UUID, ttl: timedelta | None = None, **kwargs

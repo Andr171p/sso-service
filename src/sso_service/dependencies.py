@@ -45,23 +45,25 @@ class AppProvider(Provider):
         return ClientRepository(session)
 
     @provide(scope=Scope.REQUEST)
-    def get_user_repository(self, session: AsyncSession) -> UserRepository:
+    def get_user_repository(self, session: AsyncSession) -> UserRepository:  # noqa: PLR6301
         return UserRepository(session)
 
     @provide(scope=Scope.REQUEST)
-    def get_group_repository(self, session: AsyncSession) -> GroupRepository:
+    def get_group_repository(self, session: AsyncSession) -> GroupRepository:  # noqa: PLR6301
         return GroupRepository(session)
 
     @provide(scope=Scope.APP)
-    def get_session_store(self, redis: AsyncRedis) -> RedisSessionStore:
+    def get_session_store(self, redis: AsyncRedis) -> RedisSessionStore:  # noqa: PLR6301
         return RedisSessionStore(redis)
 
     @provide(scope=Scope.REQUEST)
-    def get_client_auth_service(self, repository: ClientRepository) -> ClientAuthService:
+    def get_client_auth_service(  # noqa: PLR6301
+            self, repository: ClientRepository
+    ) -> ClientAuthService:
         return ClientAuthService(repository)
 
     @provide(scope=Scope.REQUEST)
-    def get_user_auth_service(
+    def get_user_auth_service(  # noqa: PLR6301
             self,
             user_repository: UserRepository,
             group_repository: GroupRepository,

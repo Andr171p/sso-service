@@ -19,10 +19,9 @@ class UserModel(Base):
     __tablename__ = "users"
 
     email: Mapped[str] = mapped_column(nullable=True)
-    email_verified: Mapped[bool]
     username: Mapped[str | None] = mapped_column(nullable=True)
     password: Mapped[str]
-    active: Mapped[bool]
+    status: Mapped[str]
 
     user_groups: Mapped[list["UserGroupModel"]] = relationship(
         back_populates="user",

@@ -18,7 +18,7 @@ from pydantic import (
 )
 
 from .constants import MAX_NAME_LENGTH, MIN_GRANT_TYPES_COUNT, ISSUER
-from .enums import ClientType, GrantType, Role, TokenType
+from .enums import ClientType, GrantType, Role, TokenType, UserStatus
 from .utils import (
     current_datetime,
     validate_scopes,
@@ -33,17 +33,16 @@ class User(BaseModel):
     Attributes:
         id: Уникальный идентификатор пользователя во всей системе.
         email: Адрес почты пользователя для подтверждения аккаунта (опционален).
-        username: Уникальное имя пользователя, логин (опционален)
-        active: Активен ли пользователь в системе
+        username: Уникальное имя пользователя, логин (опционален).
+        status: Статус пользователя в системе.
         (при флаге False - пользователь больше не может входить в систему).
         created_at: Дата и время добавления пользователя.
     """
     id: UUID = Field(default_factory=uuid4)
     email: EmailStr | None = None
-    email_verified: bool = False
     username: str | None = None
     password: SecretStr
-    active: bool = True
+    status: UserStatus = Field(default=UserStatus.REGISTERED)
     created_at: datetime = Field(default_factory=current_datetime)
 
     model_config = ConfigDict(from_attributes=True)
@@ -66,7 +65,7 @@ class User(BaseModel):
             "iss": ISSUER,
             "sub": str(self.id),
             "email": self.email,
-            "email_verified": self.email_verified,
+            "status": self.status.value,
             "realm": realm,
             "roles": " ".join(roles),
             **kwargs,
@@ -214,13 +213,9 @@ class Session(BaseModel):
     ip_address: str | None = None
     last_activity: float = Field(default_factory=current_timestamp)
 
-    @field_serializer("session_id")
-    def serialize_session_id(self, session_id: UUID) -> str:
-        return str(session_id)
-
-    @field_serializer("user_id")
-    def serialize_user_id(self, user_id: UUID) -> str:
-        return str(user_id)
+    @field_serializer("session_id", "user_id")
+    def serialize_guid(self, guid: UUID) -> str:
+        return str(guid)
 
 
 class Token(BaseModel):
@@ -260,6 +255,7 @@ class ClientClaims(Claims):
 
 
 class UserClaims(Claims):
+    status: UserStatus | None = None
     realm: str | None = None
     roles: list[Role] | None = None
 

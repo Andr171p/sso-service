@@ -16,7 +16,7 @@ from .core.constants import (
     USER_REFRESH_TOKEN_EXPIRE_IN,
 )
 from .core.domain import ClientClaims, Session, Token, TokenPair, User, UserClaims
-from .core.enums import GrantType, TokenType
+from .core.enums import GrantType, TokenType, UserStatus
 from .core.exceptions import (
     InvalidCredentialsError,
     InvalidTokenError,
@@ -125,8 +125,8 @@ class UserAuthService(BaseAuthService[TokenPair, UserClaims]):
         user = await self.user_repository.get_by_email(email)
         if user is None:
             raise InvalidCredentialsError("Invalid email")
-        if not user.active:
-            raise NotEnabledError("User is not active")
+        if user.status == UserStatus.BANNED:
+            raise NotEnabledError("User is banned")
         if not verify_secret(password, user.password.get_secret_value()):
             raise InvalidCredentialsError("Invalid password")
         roles = await self._give_roles(realm, user.id)
@@ -185,7 +185,7 @@ class UserAuthService(BaseAuthService[TokenPair, UserClaims]):
         session_id: UUID = kwargs.get("session_id")
         if not realm:
             raise ValueError("Realm is required")
-        if await self.session_store.get(session_id) is None or session_id is None:
+        if not await self.session_store.exists(session_id) or session_id is None:
             raise UnauthorizedError("Session not found")
         try:
             payload = decode_token(token)
@@ -256,6 +256,8 @@ class UserAuthService(BaseAuthService[TokenPair, UserClaims]):
         user_id = UUID(claims.sub)
         roles = await self._give_roles(target_realm, user_id)
         user = await self.user_repository.read(user_id)
+        if user.status == UserStatus.BANNED:
+            raise PermissionDeniedError("User is banned")
         payload = user.to_payload(realm=target_realm, roles=roles)
         return self._generate_token_pair(payload, session_id)
 
