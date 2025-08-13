@@ -97,9 +97,9 @@ class IdentityProviderModel(Base):
     __tablename__ = "identity_providers"
 
     name: Mapped[str] = mapped_column(unique=True)
-    type: Mapped[str]
-    client_id: Mapped[str] = mapped_column(unique=True)
-    client_secret: Mapped[str] = mapped_column(unique=True)
+    protocol: Mapped[str]
+    # client_id: Mapped[str] = mapped_column(unique=True)
+    # client_secret: Mapped[str] = mapped_column(unique=True)
     scopes: Mapped[list[str]] = mapped_column(ARRAY(String))
 
 
