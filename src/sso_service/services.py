@@ -191,8 +191,6 @@ class UserAuthService(BaseAuthService[TokenPair, UserClaims]):
             payload = decode_token(token)
         except InvalidTokenError:
             raise UnauthorizedError("Invalid token") from None
-        # if "token_type" in payload and payload["token_type"] != TokenType.ACCESS:
-        #    return UserClaims(active=False, cause="Invalid token type")
         if "realm" not in payload or payload.get("realm") != realm:
             return UserClaims(active=False, cause="Invalid token in this realm")
         if "exp" in payload and payload["exp"] < current_timestamp():

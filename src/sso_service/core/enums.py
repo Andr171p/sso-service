@@ -38,3 +38,4 @@ class UserStatus(StrEnum):
     REGISTERED = "registered"
     ACTIVE = "active"
     BANNED = "banned"
+    DELETED = "deleted"

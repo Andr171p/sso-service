@@ -4,11 +4,11 @@ from uuid import UUID
 
 from pydantic import BaseModel
 from sqlalchemy import delete, insert, select, update
-from sqlalchemy.orm import joinedload
 from sqlalchemy.exc import IntegrityError, SQLAlchemyError
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import joinedload
 
-from ..core.domain import Client, Realm, User, Group
+from ..core.domain import Client, Group, IdentityProvider, Realm, User, UserIdentity
 from ..core.exceptions import (
     AlreadyExistsError,
     CreationError,
@@ -17,7 +17,15 @@ from ..core.exceptions import (
     UpdateError,
 )
 from .base import Base
-from .models import ClientModel, RealmModel, UserModel, GroupModel, UserGroupModel
+from .models import (
+    ClientModel,
+    GroupModel,
+    IdentityProviderModel,
+    RealmModel,
+    UserGroupModel,
+    UserModel,
+    UserIdentityModel,
+)
 
 Model = TypeVar("Model", bound=Base)
 Schema = TypeVar("Schema", bound=BaseModel)
@@ -54,6 +62,19 @@ class CRUDRepository[Model: Base, Schema: BaseModel]:
             await self.session.rollback()
             raise ReadingError(f"Error while reading: {e}") from e
 
+    async def read_all(self, limit: int, page: int) -> list[Schema]:
+        try:
+            offset = (page - 1) * limit
+            stmt = select(self.model).offset(offset).limit(limit)
+            results = await self.session.execute(stmt)
+            models = results.scalars().all()
+            return [
+                self.schema.model_validate(model) for model in models
+            ]
+        except SQLAlchemyError as e:
+            await self.session.rollback()
+            raise ReadingError(f"Error while reading: {e}") from e
+
     async def update(self, id: UUID, **kwargs) -> Schema | None:  # noqa: A002
         try:
             stmt = (
@@ -85,17 +106,6 @@ class CRUDRepository[Model: Base, Schema: BaseModel]:
 class RealmRepository(CRUDRepository[RealmModel, Realm]):
     model = RealmModel
     schema = Realm
-
-    async def read_all(self, limit: int, page: int) -> list[Realm]:
-        try:
-            offset = (page - 1) * limit
-            stmt = select(self.model).offset(offset).limit(limit)
-            results = await self.session.execute(stmt)
-            models = results.scalars().all()
-            return [Realm.model_validate(model) for model in models]
-        except SQLAlchemyError as e:
-            await self.session.rollback()
-            raise ReadingError(f"Error while reading all realms: {e}") from e
 
     async def get_by_slug(self, slug: str) -> Realm | None:
         try:
@@ -144,19 +154,6 @@ class UserRepository(CRUDRepository[UserModel, User]):
     model = UserModel
     schema = User
 
-    async def read_all(self, page: int, limit: int) -> list[User]:
-        try:
-            offset = (page - 1) * limit
-            stmt = select(self.model).offset(offset).limit(limit)
-            results = await self.session.execute(stmt)
-            models = results.scalars().all()
-            return [
-                self.schema.model_validate(model) for model in models
-            ]
-        except SQLAlchemyError as e:
-            await self.session.rollback()
-            raise ReadingError(f"Error while reading: {e}") from e
-
     async def get_by_email(self, email: str) -> User | None:
         try:
             stmt = select(UserModel).where(self.model.email == email)
@@ -192,3 +189,13 @@ class GroupRepository(CRUDRepository[GroupModel, Group]):
         except SQLAlchemyError as e:
             await self.session.rollback()
             raise ReadingError(f"Error while reading: {e}") from e
+
+
+class IdentityProviderRepository(CRUDRepository[IdentityProviderModel, IdentityProvider]):
+    model = IdentityProviderModel
+    schema = IdentityProvider
+
+
+class UserIdentityRepository(CRUDRepository[UserIdentityModel, UserIdentity]):
+    model = UserIdentityModel
+    schema = UserIdentity

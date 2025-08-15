@@ -17,6 +17,7 @@ dependencies = [
     "pytz>=2025.2",
     "redis>=6.2.0",
     "sqlalchemy>=2.0.42",
+    "types-pytz>=2025.2.0.20250809",
 ]
 
 # -- MyPy --

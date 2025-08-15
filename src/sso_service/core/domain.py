@@ -264,3 +264,13 @@ class UserClaims(Claims):
         if isinstance(roles, list):
             return roles
         return [Role(role) for role in roles.split(" ")]
+
+
+class OAuthTokens(BaseModel):
+    """Авторизационные данные полученные
+    после обработки callback от OAuth провайдера
+    """
+    access_token: str
+    refresh_token: str | None = None
+    id_token: str | None = None
+    expires_in: int

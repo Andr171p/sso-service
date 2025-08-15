@@ -1,7 +1,10 @@
+from typing import Annotated
+
 from datetime import datetime
 from uuid import UUID, uuid4
 
-from sqlalchemy import func, DateTime
+from sqlalchemy import ARRAY, DateTime, String, Text, func
+from sqlalchemy.dialects.postgresql import UUID as PG_UUID
 from sqlalchemy.ext.asyncio import (
     AsyncAttrs,
     AsyncSession,
@@ -9,6 +12,13 @@ from sqlalchemy.ext.asyncio import (
     create_async_engine,
 )
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
+
+StrNullable = Annotated[str | None, mapped_column(nullable=True)]
+StringArray = Annotated[list[str], mapped_column(ARRAY(String))]
+StrUnique = Annotated[str, mapped_column(unique=True)]
+TextNullable = Annotated[str | None, mapped_column(Text, nullable=True)]
+PostgresUUID = Annotated[UUID, mapped_column(PG_UUID(as_uuid=True), unique=False)]
+DatetimeNullable = Annotated[datetime | None, mapped_column(DateTime, nullable=True)]
 
 
 class Base(AsyncAttrs, DeclarativeBase):
