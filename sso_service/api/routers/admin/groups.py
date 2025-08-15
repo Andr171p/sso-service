@@ -5,9 +5,9 @@ from dishka.integrations.fastapi import DishkaRoute
 from dishka.integrations.fastapi import FromDishka as Depends
 from fastapi import APIRouter, HTTPException, status
 
-from src.sso_service.core.domain import Group
-from src.sso_service.core.exceptions import DeletionError, ReadingError, UpdateError
-from src.sso_service.database.repository import GroupRepository
+from sso_service.core.domain import Group
+from sso_service.core.exceptions import DeletionError, ReadingError, UpdateError
+from sso_service.database.repository import GroupRepository
 
 from ...schemas import GroupUpdate
 

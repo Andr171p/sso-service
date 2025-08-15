@@ -7,15 +7,15 @@ from dishka.integrations.fastapi import DishkaRoute
 from dishka.integrations.fastapi import FromDishka as Depends
 from fastapi import APIRouter, HTTPException, Query, status
 
-from src.sso_service.core.domain import Client, Group, Realm
-from src.sso_service.core.exceptions import (
+from sso_service.core.domain import Client, Group, Realm
+from sso_service.core.exceptions import (
     AlreadyExistsError,
     CreationError,
     DeletionError,
     ReadingError,
     UpdateError,
 )
-from src.sso_service.database.repository import ClientRepository, GroupRepository, RealmRepository
+from sso_service.database.repository import ClientRepository, GroupRepository, RealmRepository
 
 from ...schemas import GroupCreate, RealmCreate, RealmUpdate
 

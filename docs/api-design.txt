@@ -1,3 +1,0 @@
-client_secret = 5jyV440ZFXPFOMxwA0isEThSWtExXlUh83QDSTmBvrk
-client_id = WiNPhRXcvYQFu7KaHq0P19Ua5OwhcMxR
-grant_type = "client_credentials"

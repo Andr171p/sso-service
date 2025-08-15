@@ -5,14 +5,14 @@ from dishka.integrations.fastapi import DishkaRoute
 from dishka.integrations.fastapi import FromDishka as Depends
 from fastapi import APIRouter, HTTPException, status
 
-from src.sso_service.core.domain import Client
-from src.sso_service.core.exceptions import (
+from sso_service.core.domain import Client
+from sso_service.core.exceptions import (
     CreationError,
     DeletionError,
     ReadingError,
     UpdateError,
 )
-from src.sso_service.database.repository import ClientRepository
+from sso_service.database.repository import ClientRepository
 
 from ...schemas import ClientCreate, ClientUpdate, CreatedClient
 

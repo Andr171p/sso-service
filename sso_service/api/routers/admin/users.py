@@ -7,9 +7,9 @@ from dishka.integrations.fastapi import DishkaRoute
 from dishka.integrations.fastapi import FromDishka as Depends
 from fastapi import APIRouter, HTTPException, Query, status
 
-from src.sso_service.core.domain import User
-from src.sso_service.core.exceptions import ReadingError, UpdateError
-from src.sso_service.database.repository import UserRepository
+from sso_service.core.domain import User
+from sso_service.core.exceptions import ReadingError, UpdateError
+from sso_service.database.repository import UserRepository
 
 from ...schemas import UserUpdate
 
