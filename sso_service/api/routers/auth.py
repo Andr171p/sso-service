@@ -7,12 +7,6 @@ from fastapi import APIRouter, HTTPException, Request, Response, status
 
 from ...core.constants import SESSION_EXPIRE_IN
 from ...core.domain import TokenPair, UserClaims
-from ...core.exceptions import (
-    InvalidCredentialsError,
-    NotEnabledError,
-    UnauthorizedError,
-    PermissionDeniedError,
-)
 from ...services import UserAuthService
 from ...storage import RedisSessionStore
 from ..schemas import TokenIntrospect, TokenRefresh, UserLogin, UserRealmSwitch
@@ -35,28 +29,20 @@ async def login_user(
         response: Response,
         service: Depends[UserAuthService]
 ) -> TokenPair:
-    try:
-        token_pair = await service.authenticate(
-            realm=realm,
-            email=user.email,
-            password=user.password,
-        )
-        response.set_cookie(
-            key="session_id",
-            value=str(token_pair.session_id),
-            httponly=True,
-            secure=False,  # False только для теста  #TODO
-            samesite="lax",
-            max_age=int(SESSION_EXPIRE_IN.total_seconds())
-        )
-    except (InvalidCredentialsError, NotEnabledError) as e:
-        logger.exception("{e}")
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail=str(e),
-        ) from e
-    else:
-        return token_pair
+    token_pair = await service.authenticate(
+        realm=realm,
+        email=user.email,
+        password=user.password,
+    )
+    response.set_cookie(
+        key="session_id",
+        value=str(token_pair.session_id),
+        httponly=True,
+        secure=False,  # False только для теста  #TODO
+        samesite="lax",
+        max_age=int(SESSION_EXPIRE_IN.total_seconds())
+    )
+    return token_pair
 
 
 @auth_router.post(
@@ -73,16 +59,9 @@ async def introspect_token(
         service: Depends[UserAuthService]
 ) -> UserClaims:
     session_id = request.cookies.get("session_id")
-    try:
-        return await service.introspect(
-            token.token, realm=realm, session_id=session_id
-        )
-    except UnauthorizedError as e:
-        logger.exception("{e}")
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail=str(e)
-        ) from e
+    return await service.introspect(
+        token.token, realm=realm, session_id=session_id
+    )
 
 
 @auth_router.post(
@@ -100,23 +79,16 @@ async def refresh_token(
         service: Depends[UserAuthService]
 ) -> TokenPair:
     session_id = request.cookies.get("session_id")
-    try:
-        token_pair = await service.refresh(token.refresh_token, realm, UUID(session_id))
-        response.set_cookie(
-            key="session_id",
-            value=str(token_pair.session_id),
-            httponly=True,
-            secure=False,  # False только для теста  #TODO
-            samesite="lax",
-            max_age=int(SESSION_EXPIRE_IN.total_seconds())
-        )
-    except UnauthorizedError as e:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail=str(e)
-        ) from e
-    else:
-        return token_pair
+    token_pair = await service.refresh(token.refresh_token, realm, UUID(session_id))
+    response.set_cookie(
+        key="session_id",
+        value=str(token_pair.session_id),
+        httponly=True,
+        secure=False,  # False только для теста  #TODO
+        samesite="lax",
+        max_age=int(SESSION_EXPIRE_IN.total_seconds())
+    )
+    return token_pair
 
 
 @auth_router.post(
@@ -125,7 +97,7 @@ async def refresh_token(
     summary="Выход пользователя из системы"
 )
 async def logout_user(
-        realm: str,
+        realm: str,  # noqa: ARG001
         request: Request,
         response: Response,
         session_store: Depends[RedisSessionStore]
@@ -163,20 +135,9 @@ async def switch_realm(
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED, detail="Session id is missing in cookies"
         ) from None
-    try:
-        return await service.switch_realm(
-            current_realm=realm,
-            target_realm=user.target_realm,
-            refresh_token=user.refresh_token,
-            session_id=session_id
-        )
-    except UnauthorizedError as e:
-        logger.exception("{e}")
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED, detail=str(e)
-        ) from e
-    except PermissionDeniedError as e:
-        logger.exception("{e}")
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN, detail=str(e)
-        ) from e
+    return await service.switch_realm(
+        current_realm=realm,
+        target_realm=user.target_realm,
+        refresh_token=user.refresh_token,
+        session_id=session_id
+    )

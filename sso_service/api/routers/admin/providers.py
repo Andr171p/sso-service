@@ -8,12 +8,6 @@ from dishka.integrations.fastapi import FromDishka as Depends
 from fastapi import APIRouter, HTTPException, Query, status
 
 from sso_service.core.domain import IdentityProvider
-from sso_service.core.exceptions import (
-    AlreadyExistsError,
-    CreationError,
-    DeletionError,
-    ReadingError,
-)
 from sso_service.database.repository import IdentityProviderRepository
 
 logger = logging.getLogger(__name__)
@@ -32,19 +26,7 @@ providers_router = APIRouter(
 async def create_provider(
         provider: IdentityProvider, repository: Depends[IdentityProviderRepository]
 ) -> IdentityProvider:
-    try:
-        return await repository.create(provider)
-    except AlreadyExistsError:
-        logger.exception("{e}")
-        raise HTTPException(
-            status_code=status.HTTP_409_CONFLICT, detail="Provider already exists"
-        ) from None
-    except CreationError:
-        logger.exception("{e}")
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Error while provider creation"
-        ) from None
+    return await repository.create(provider)
 
 
 @providers_router.get(
@@ -58,14 +40,7 @@ async def get_providers(
         page: Annotated[int, Query(..., description="Страница с провайдерами")],
         repository: Depends[IdentityProviderRepository]
 ) -> list[IdentityProvider]:
-    try:
-        return await repository.read_all(limit, page)
-    except ReadingError:
-        logger.exception("{e}")
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Error while reading providers"
-        ) from None
+    return await repository.read_all(limit, page)
 
 
 @providers_router.get(
@@ -75,22 +50,14 @@ async def get_providers(
     summary="Получает конкретного провайдера по его id"
 )
 async def get_provider(
-        id: UUID, repository: Depends[IdentityProviderRepository]
+        id: UUID, repository: Depends[IdentityProviderRepository]  # noqa: A002
 ) -> IdentityProvider:
-    try:
-        provider = await repository.read(id)
-        if provider is None:
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND, detail="Provider not found"
-            )
-    except ReadingError:
-        logger.exception("{e}")
+    provider = await repository.read(id)
+    if provider is None:
         raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Error while reading provider"
-        ) from None
-    else:
-        return provider
+            status_code=status.HTTP_404_NOT_FOUND, detail="Provider not found"
+        )
+    return provider
 
 
 @providers_router.delete(
@@ -99,17 +66,10 @@ async def get_provider(
     summary="Удаляет провайдера по его d"
 )
 async def delete_provider(
-        id: UUID, repository: Depends[IdentityProviderRepository]
+        id: UUID, repository: Depends[IdentityProviderRepository]  # noqa: A002
 ) -> None:
-    try:
-        is_deleted = await repository.delete(id)
-        if not is_deleted:
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND, detail="Provider not found"
-            )
-    except DeletionError:
-        logger.exception("{e}")
+    is_deleted = await repository.delete(id)
+    if not is_deleted:
         raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Error while deleting provider"
-        ) from None
+            status_code=status.HTTP_404_NOT_FOUND, detail="Provider not found"
+        )
