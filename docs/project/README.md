@@ -1,36 +1,28 @@
 # Документация для внесения изменения в проект
 
-## Структура проекта 📁
-```
-docs - Документаия проекта
-migration - Миграции alembic
-sso_service - Код проекта
- - api - Слой презентации
- -- routers - API ендпоинты
- -- __init__.py
- -- app.py - Кинфигурация API приложения
- -- schemas.py - JSON схемы, query прааметры ...
- - core - Слой доменной логики
- -- __init__.py
- -- base.py - Интерфейсы, базовые и абстрактные классы
- -- constants.py - Константы
- -- domain.py - Доменные сущности
- -- enums.py - Перечисления
- -- exceptions.py - Ошибки на уровне приложения
- -- utils.py - Вспомогательные фугкции и утилиты
- - database - Работа с базой данных
- - providers - Identity провайдеры (Google, VK, ...) 
- - __init__.py
- - dependencies.py - Контейнер зависимостей
- - security.py - JWT, хэшированние и.т.д
- - services.py - Сервисный слой (бизнес логика)
- - settings.py - Настройки, переменные окружения
- - storage.py - Кэшевые хранилища данных (Redis)
-alembic.ini
-docker-compose.yml
-main.py - Точка входа приложения
-pyproject.toml
-uv.lock
+## 🌳 Структура проекта
+
+```bash
+.
+├── 📂 docs/                  # Документация проекта
+├── 📂 migration/             # Миграции Alembic
+├── 📂 sso_service/           # Основной код проекта
+│   ├── 📂 api/               # Слой презентации (API)
+│   │   ├── 📂 routers/       # API эндпоинты
+│   │   ├── </> __init__.py 
+│   │   ├── </> app.py         # Логика создания FastAPI приложения
+│   │   ├── </> schemas.py     # Pydantic схемы и параметры запросов
+│   ├── 📂 core/               # Доменная логика
+│   │   ├── 🏛️ domain.py       # Доменные модели
+│   │   ├── </> enums.py
+│   │   └── ...               # Другие core-файлы
+│   ├── 📂 providers/         # Identity провайдеры (Google, VK)
+│   ├── 🔒 security.py        # JWT, хеширование ...
+│   ├── ⚙️ services.py        # Бизнес-логика
+│   └── ⚙️ settings.py        # Конфигурация приложения
+├── </> main.py               # Точка входа
+├── 🐳 docker-compose.yml
+└── 📜 pyproject.toml         # Зависимости проекта и конфигурация проекта
 ```
 
 ## Стек технологий 🛠️
