@@ -6,7 +6,6 @@ from sqlalchemy.orm import Mapped, mapped_column, relationship
 from .base import (
     Base,
     DatetimeNullable,
-    PostgresUUID,
     StringArray,
     StrNullable,
     StrUnique,
@@ -107,12 +106,14 @@ class IdentityProviderModel(Base):
 class UserIdentityModel(Base):
     __tablename__ = "user_identities"
 
-    user_id: Mapped[PostgresUUID]
+    user_id: Mapped[UUID] = mapped_column(ForeignKey("users.id"), unique=False)
     provider_id: Mapped[UUID] = mapped_column(
         ForeignKey("identity_providers.id"), unique=False
     )
     provider_user_id: Mapped[StrUnique]
     email: Mapped[StrNullable]
+
+    user: Mapped["UserModel"] = relationship(back_populates="user_identities")
 
     __table_args__ = (
         UniqueConstraint("user_id", "provider_user_id", name="identity_uq"),
