@@ -21,7 +21,7 @@ class UserModel(Base):
     password: Mapped[StrNullable]
     status: Mapped[str]
 
-    identities: Mapped[list["UserIdentityModel"]] = relationship(
+    user_identities: Mapped[list["UserIdentityModel"]] = relationship(
         back_populates="user",
         cascade="all, delete-orphan"
     )
