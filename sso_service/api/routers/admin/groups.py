@@ -6,7 +6,6 @@ from dishka.integrations.fastapi import FromDishka as Depends
 from fastapi import APIRouter, HTTPException, status
 
 from sso_service.core.domain import Group
-from sso_service.core.exceptions import DeletionError, ReadingError, UpdateError
 from sso_service.database.repository import GroupRepository
 
 from ...schemas import GroupUpdate
@@ -22,22 +21,13 @@ groups_router = APIRouter(prefix="/groups", tags=["Groups"], route_class=DishkaR
     response_model=Group,
     summary="Получает группу",
 )
-async def get_group(id: UUID, repository: Depends[GroupRepository]) -> Group:
-    try:
-        group = await repository.read(id)
-        if not group:
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail="Group not found",
-            ) from None
-    except ReadingError:
-        logger.exception("{e}")
+async def get_group(id: UUID, repository: Depends[GroupRepository]) -> Group:  # noqa: A002
+    group = await repository.read(id)
+    if not group:
         raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Error while receiving group"
+            status_code=status.HTTP_404_NOT_FOUND, detail="Group not found",
         ) from None
-    else:
-        return group
+    return group
 
 
 @groups_router.patch(
@@ -47,25 +37,16 @@ async def get_group(id: UUID, repository: Depends[GroupRepository]) -> Group:
     summary="Обновляет атрибуты группы"
 )
 async def update_group(
-        id: UUID, group_update: GroupUpdate, repository: Depends[GroupRepository]
+        id: UUID, group_update: GroupUpdate, repository: Depends[GroupRepository]  # noqa: A002
 ) -> Group:
-    try:
-        group = await repository.update(
-            id, **group_update.model_dump(exclude_none=True)
-        )
-        if not group:
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail="Group not found"
-            ) from None
-    except UpdateError:
-        logger.exception("{e}")
+    group = await repository.update(
+        id, **group_update.model_dump(exclude_none=True)
+    )
+    if not group:
         raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Error while updating group"
+            status_code=status.HTTP_404_NOT_FOUND, detail="Group not found"
         ) from None
-    else:
-        return group
+    return group
 
 
 @groups_router.delete(
@@ -73,17 +54,9 @@ async def update_group(
     status_code=status.HTTP_204_NO_CONTENT,
     summary="Удаляет группу вместе пользовательскими привязками"
 )
-async def delete_group(id: UUID, repository: Depends[GroupRepository]) -> None:
-    try:
-        is_deleted = await repository.delete(id)
-        if not is_deleted:
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail="Group not found"
-            ) from None
-    except DeletionError:
-        logger.exception("{e}")
+async def delete_group(id: UUID, repository: Depends[GroupRepository]) -> None:  # noqa: A002
+    is_deleted = await repository.delete(id)
+    if not is_deleted:
         raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Error while deleting group"
+            status_code=status.HTTP_404_NOT_FOUND, detail="Group not found"
         ) from None

@@ -3,7 +3,7 @@ from __future__ import annotations
 from datetime import datetime
 from uuid import UUID
 
-from pydantic import BaseModel, ConfigDict, field_validator, SecretStr, EmailStr
+from pydantic import BaseModel, ConfigDict, EmailStr, SecretStr, field_validator
 
 from ..core.enums import ClientType, GrantType, Role, UserStatus
 
@@ -125,6 +125,6 @@ class UserUpdate(BaseModel):
 
     @field_validator("status", mode="before")
     def validate_status(cls, status: UserStatus) -> UserStatus:
-        if status in (UserStatus.REGISTERED, UserStatus.ACTIVE):
+        if status in {UserStatus.REGISTERED, UserStatus.ACTIVE}:
             raise ValueError("Invalid status")
         return status
