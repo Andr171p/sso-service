@@ -1,3 +1,5 @@
+from typing import Any
+
 import secrets
 import string
 from datetime import datetime
@@ -5,7 +7,8 @@ from datetime import datetime
 from asyncpg.pgproto.pgproto import timedelta
 from pydantic import SecretStr
 
-from .constants import BYTES_COUNT
+from .constants import BYTES_COUNT, GOOD_STATUS_CODE
+from .exceptions import NotFoundHTTPError
 
 
 def generate_secret() -> SecretStr:
@@ -34,14 +37,22 @@ def format_scope(scope: str) -> list[str]:
 
 def current_datetime() -> datetime:
     from ..settings import moscow_tz
+
     return datetime.now(tz=moscow_tz)
 
 
 def current_timestamp() -> float:
     from ..settings import moscow_tz
+
     return datetime.now(tz=moscow_tz).timestamp()
 
 
 def expires_at(expires_in: timedelta) -> int:
     """Рассчитывает время истечения"""
     return int((current_datetime() + expires_in).timestamp())
+
+
+async def valid_answer(response: Any) -> dict:
+    if response.status != GOOD_STATUS_CODE:
+        raise NotFoundHTTPError
+    return await response.json()

@@ -9,8 +9,7 @@ from .routers import router
 
 
 @asynccontextmanager
-async def lifespan(_: FastAPI) -> AsyncIterator[None]:
-    ...
+async def lifespan(_: FastAPI) -> AsyncIterator[None]: ...
 
 
 def create_fastapi_app() -> FastAPI:

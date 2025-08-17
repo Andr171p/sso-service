@@ -1,29 +1,35 @@
 from __future__ import annotations
 
-from typing import Any
+from typing import Any, Literal
 
+from abc import ABC, abstractmethod
 from datetime import datetime
+from urllib.parse import urlencode
 from uuid import UUID, uuid4
 
+from authlib.common.security import generate_token
+from authlib.oauth2.rfc7636 import create_s256_code_challenge
 from pydantic import (
     BaseModel,
     ConfigDict,
-    Field,
     EmailStr,
+    Field,
     HttpUrl,
     SecretStr,
-    field_validator,
     field_serializer,
+    field_validator,
     model_validator,
 )
 
-from .constants import MAX_NAME_LENGTH, MIN_GRANT_TYPES_COUNT, ISSUER
+from ..settings import settings
+from .constants import ISSUER, MAX_NAME_LENGTH, MIN_GRANT_TYPES_COUNT
 from .enums import ClientType, GrantType, Role, TokenType, UserStatus
 from .utils import (
     current_datetime,
-    validate_scopes,
+    current_timestamp,
     generate_public_id,
-    generate_secret, current_timestamp
+    generate_secret,
+    validate_scopes,
 )
 
 
@@ -38,10 +44,11 @@ class User(BaseModel):
         (при флаге False - пользователь больше не может входить в систему).
         created_at: Дата и время добавления пользователя.
     """
+
     id: UUID = Field(default_factory=uuid4)
     email: EmailStr | None = None
     username: str | None = None
-    password: SecretStr
+    password: SecretStr | None = None
     status: UserStatus = Field(default=UserStatus.REGISTERED)
     created_at: datetime = Field(default_factory=current_datetime)
 
@@ -49,13 +56,16 @@ class User(BaseModel):
 
     def hash_password(self) -> User:
         from ..security import hash_secret
-        self.password = SecretStr(
-            hash_secret(self.password.get_secret_value())
-        )
+
+        if self.password is None:
+            raise ValueError("")
+        self.password = SecretStr(hash_secret(self.password.get_secret_value()))
         return self
 
     @field_serializer("password")
-    def serialize_secret(self, password: SecretStr) -> str:
+    def serialize_secret(self, password: SecretStr | None) -> str | None:
+        if password is None:
+            return password
         return password.get_secret_value()
 
     def to_payload(self, **kwargs) -> dict[str, Any]:
@@ -74,6 +84,7 @@ class User(BaseModel):
 
 class Group(BaseModel):
     """Ролевые группы для пользователей"""
+
     id: UUID = Field(default_factory=uuid4)
     realm_id: UUID
     name: str
@@ -86,6 +97,7 @@ class Group(BaseModel):
 
 class UserGroup(BaseModel):
     """Привязка пользователя к группе"""
+
     user_id: UUID
     group_id: UUID
 
@@ -103,6 +115,7 @@ class Realm(BaseModel):
         (при значении False отключаются все сервисы внутри неё).
         created_at: Дата и время создания области.
     """
+
     id: UUID = Field(default_factory=uuid4)
     name: str = Field(..., max_length=MAX_NAME_LENGTH)
     slug: str
@@ -130,6 +143,7 @@ class Client(BaseModel):
         scopes: Права выдаваемые клиенту для ограничения доступа к другим клиентам.
         created_at: Дата создания клиента.
     """
+
     id: UUID = Field(default_factory=uuid4)
     realm_id: UUID
     client_id: str = Field(default_factory=generate_public_id)
@@ -150,18 +164,12 @@ class Client(BaseModel):
 
     def to_payload(self, **kwargs) -> dict[str, Any]:
         """Полезная нагрузка для JWT"""
-        return {
-            "iss": ISSUER,
-            "sub": self.client_id,
-            "scope": " ".join(self.scopes),
-            **kwargs
-        }
+        return {"iss": ISSUER, "sub": self.client_id, "scope": " ".join(self.scopes), **kwargs}
 
     def hash_client_secret(self) -> Client:
         from ..security import hash_secret
-        self.client_secret = SecretStr(
-            hash_secret(self.client_secret.get_secret_value())
-        )
+
+        self.client_secret = SecretStr(hash_secret(self.client_secret.get_secret_value()))
         return self
 
     @model_validator(mode="after")
@@ -184,6 +192,7 @@ class Client(BaseModel):
 
 class IdentityProvider(BaseModel):
     """Провайдер аутентификации и регистрации"""
+
     id: UUID = Field(default_factory=uuid4)
     name: str
     type: str
@@ -196,16 +205,19 @@ class IdentityProvider(BaseModel):
 
 class UserIdentity(BaseModel):
     """Привязка аккаунта пользователя"""
+
     id: UUID = Field(default_factory=uuid4)
-    user_id: UUID
-    provider_id: UUID
-    provider_user_id: UUID
+    user_id: UUID | None = None
+    provider_id: UUID | None = None
+    provider_user_id: str
+    email: str
 
     model_config = ConfigDict(from_attributes=True)
 
 
 class Session(BaseModel):
     """Пользовательская сессия в SSO"""
+
     session_id: UUID = Field(default_factory=uuid4)
     user_id: UUID
     expires_at: int | float
@@ -232,6 +244,7 @@ class TokenPair(BaseModel):
 
 class Claims(BaseModel):
     """Базовая модель для интроспекции JWT"""
+
     active: bool = False
     cause: str | None = None
     token_type: TokenType | None = None
@@ -266,11 +279,93 @@ class UserClaims(Claims):
         return [Role(role) for role in roles.split(" ")]
 
 
-class OAuthTokens(BaseModel):
-    """Авторизационные данные полученные
-    после обработки callback от OAuth провайдера
-    """
+class Codes(BaseModel):
+    state: str
+    code_verifier: str
+    code_challenge: str
+
+    @classmethod
+    def generate(cls) -> Codes:
+        verifier = generate_token(64)
+        return cls(
+            state=str(uuid4()),
+            code_verifier=verifier,
+            code_challenge=create_s256_code_challenge(verifier),
+        )
+
+
+class VKRedirect(BaseModel):
+    client_id: str = settings.vk_settings.vk_app_id
+    redirect_uri: str = settings.vk_settings.vk_redirect_uri
+
+    def to_url(self, state: str, code_challenge: str) -> str:
+        query = urlencode({
+            "client_id": self.client_id,
+            "redirect_uri": self.redirect_uri,
+            "response_type": "code",
+            "state": state,
+            "scope": "email",
+            "code_challenge": code_challenge,
+            "code_challenge_method": "S256",
+        })
+        return f"{settings.vk_settings.vk_auth_url}?{query}"
+
+
+class YandexRedirect(BaseModel):
+    client_id: str = settings.yandex_settings.yandex_app_id
+
+    def to_url(self, state: str, code_challenge: str) -> str:
+        query = urlencode({
+            "client_id": self.client_id,
+            "response_type": "code",
+            "state": state,
+            "scope": "login:info login:email",
+            "code_challenge": code_challenge,
+            "code_challenge_method": "S256",
+        })
+        return f"{settings.yandex_settings.yandex_auth_url}?{query}"
+
+
+class BaseCallback(BaseModel, ABC):
+    code: str
+    state: str
+
+    @abstractmethod
+    def to_dict(self, code_verifier: str) -> dict: ...
+
+
+class YandexCallback(BaseCallback):
+    def to_dict(self, code_verifier: str) -> dict:
+        return {
+            "grant_type": "authorization_code",
+            "code": self.code,
+            "client_id": settings.yandex_settings.yandex_app_id,
+            "client_secret": settings.yandex_settings.yandex_app_secret,
+            "code_verifier": code_verifier,
+        }
+
+
+class VKCallback(BaseCallback):
+    device_id: str
+
+    def to_dict(self, code_verifier: str) -> dict:
+        return {
+            "grant_type": "authorization_code",
+            "code": self.code,
+            "code_verifier": code_verifier,
+            "client_id": settings.vk_settings.vk_app_id,
+            "device_id": self.device_id,
+            "redirect_uri": settings.vk_settings.vk_redirect_uri,
+            "state": self.state,
+        }
+
+
+class VKGetData(BaseModel):
     access_token: str
-    refresh_token: str | None = None
-    id_token: str | None = None
-    expires_in: int
+    user_id: str = Field(exclude=True)
+    client_id: str = settings.vk_settings.vk_app_id
+
+
+class YandexGetData(BaseModel):
+    oauth_token: str
+    format: Literal["json"] = "json"

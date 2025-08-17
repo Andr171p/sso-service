@@ -6,7 +6,6 @@ from sqlalchemy.orm import Mapped, mapped_column, relationship
 from .base import (
     Base,
     DatetimeNullable,
-    PostgresUUID,
     StringArray,
     StrNullable,
     StrUnique,
@@ -22,13 +21,11 @@ class UserModel(Base):
     password: Mapped[StrNullable]
     status: Mapped[str]
 
-    identities: Mapped[list["UserIdentityModel"]] = relationship(
-        back_populates="user",
-        cascade="all, delete-orphan"
+    user_identities: Mapped[list["UserIdentityModel"]] = relationship(
+        back_populates="user", cascade="all, delete-orphan"
     )
     user_groups: Mapped[list["UserGroupModel"]] = relationship(
-        back_populates="user",
-        cascade="all, delete-orphan"
+        back_populates="user", cascade="all, delete-orphan"
     )
 
 
@@ -42,9 +39,7 @@ class GroupModel(Base):
 
     realm: Mapped["RealmModel"] = relationship(back_populates="groups")
     user_groups: Mapped[list["UserGroupModel"]] = relationship(
-        back_populates="group",
-        cascade="all, delete-orphan",
-        single_parent=True
+        back_populates="group", cascade="all, delete-orphan", single_parent=True
     )
 
 
@@ -57,9 +52,7 @@ class UserGroupModel(Base):
     group: Mapped["GroupModel"] = relationship(back_populates="user_groups")
     user: Mapped["UserModel"] = relationship(back_populates="user_groups")
 
-    __table_args__ = (
-        UniqueConstraint("user_id", "group_id", name="user_group_uc"),
-    )
+    __table_args__ = (UniqueConstraint("user_id", "group_id", name="user_group_uc"),)
 
 
 class RealmModel(Base):
@@ -77,9 +70,7 @@ class RealmModel(Base):
 class ClientModel(Base):
     __tablename__ = "clients"
 
-    realm_id: Mapped[UUID] = mapped_column(
-        ForeignKey("realms.id"), unique=False, nullable=False
-    )
+    realm_id: Mapped[UUID] = mapped_column(ForeignKey("realms.id"), unique=False, nullable=False)
     client_id: Mapped[StrUnique]
     client_secret: Mapped[StrUnique]
     name: Mapped[StrUnique]
@@ -107,13 +98,11 @@ class IdentityProviderModel(Base):
 class UserIdentityModel(Base):
     __tablename__ = "user_identities"
 
-    user_id: Mapped[PostgresUUID]
-    provider_id: Mapped[UUID] = mapped_column(
-        ForeignKey("identity_providers.id"), unique=False
-    )
+    user_id: Mapped[UUID] = mapped_column(ForeignKey("users.id"), unique=False)
+    provider_id: Mapped[UUID] = mapped_column(ForeignKey("identity_providers.id"), unique=False)
     provider_user_id: Mapped[StrUnique]
     email: Mapped[StrNullable]
 
-    __table_args__ = (
-        UniqueConstraint("user_id", "provider_user_id", name="identity_uq"),
-    )
+    user: Mapped["UserModel"] = relationship(back_populates="user_identities")
+
+    __table_args__ = (UniqueConstraint("user_id", "provider_user_id", name="identity_uq"),)

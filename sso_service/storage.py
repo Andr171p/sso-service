@@ -5,7 +5,7 @@ from uuid import UUID
 from redis.asyncio import Redis as AsyncRedis
 
 from .core.base import BaseStore
-from .core.domain import Session
+from .core.domain import Codes, Session
 
 PREFIX = "session"
 
@@ -16,7 +16,7 @@ class RedisSessionStore(BaseStore[Session]):
         self._prefix = prefix
 
     def _build_key(self, session_id: UUID | str) -> str:
-        return f"{self._prefix}:{str(session_id)}"
+        return f"{self._prefix}:{session_id!s}"
 
     async def add(self, session: Session) -> None:
         key = self._build_key(session.session_id)
@@ -36,7 +36,7 @@ class RedisSessionStore(BaseStore[Session]):
         return await self._redis.exists(key)
 
     async def update(
-            self, session_id: UUID, ttl: timedelta | None = None, **kwargs
+        self, session_id: UUID, ttl: timedelta | None = None, **kwargs
     ) -> Session | None:
         key = self._build_key(session_id)
         if not await self._redis.exists(key):
@@ -49,3 +49,18 @@ class RedisSessionStore(BaseStore[Session]):
         key = self._build_key(session_id)
         deleted_keys = await self._redis.delete(key)
         return deleted_keys > 0
+
+
+class RedisStorage(BaseStore[Codes]):
+    def __init__(self, redis: AsyncRedis, prefix: str = PREFIX) -> None:
+        self._redis = redis
+        self._prefix = prefix
+
+    async def add(self, schema: Codes) -> None:
+        await self._redis.setex(name=schema.state, value=schema.code_verifier, time=400)
+
+    async def get_by_state(self, key: str) -> str:
+        result = await self._redis.get(key)
+        await self._redis.delete(key)
+        print(result)
+        return result.decode("utf-8")
