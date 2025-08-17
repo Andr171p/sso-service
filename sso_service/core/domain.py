@@ -49,13 +49,18 @@ class User(BaseModel):
 
     def hash_password(self) -> User:
         from ..security import hash_secret
+
+        if self.password is None:
+            raise ValueError("Passwords must be provided")
         self.password = SecretStr(
             hash_secret(self.password.get_secret_value())
         )
         return self
 
     @field_serializer("password")
-    def serialize_secret(self, password: SecretStr) -> str:
+    def serialize_secret(self, password: SecretStr | None) -> str | None:
+        if password is None:
+            return password
         return password.get_secret_value()
 
     def to_payload(self, **kwargs) -> dict[str, Any]:
