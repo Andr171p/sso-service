@@ -45,7 +45,7 @@ class User(BaseModel):
         created_at: Дата и время добавления пользователя.
     """
     id: UUID = Field(default_factory=uuid4)
-    email: EmailStr | None = None
+    email: EmailStr
     username: str | None = None
     password: SecretStr | None = None
     status: UserStatus = Field(default=UserStatus.REGISTERED)
