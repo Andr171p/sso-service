@@ -5,7 +5,7 @@ from fastapi import APIRouter, status
 from ....core.domain import TokenPair, YandexCallback
 from ....providers.yandex import YandexControl
 
-yandex_router = APIRouter(route_class=DishkaRoute)
+yandex_router = APIRouter(route_class=DishkaRoute, tags=["Yandex"])
 
 
 @yandex_router.get(path="/yandex/link", status_code=status.HTTP_200_OK)

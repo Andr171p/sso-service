@@ -5,7 +5,7 @@ from fastapi import APIRouter, status
 from ....core.domain import TokenPair, VKCallback
 from ....providers.vk import VKControl
 
-vk_router = APIRouter(route_class=DishkaRoute)
+vk_router = APIRouter(route_class=DishkaRoute, tags=["VK"])
 
 
 @vk_router.get(path="/vk/link", status_code=status.HTTP_200_OK)
