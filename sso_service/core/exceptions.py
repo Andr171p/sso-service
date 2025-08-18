@@ -76,7 +76,7 @@ class BadRequestHTTPError(BaseHTTPError):
 
 
 class UnauthorizedHTTPError(BaseHTTPError):
-    def __init__(self, message: str = "Authorization Requied") -> None:
+    def __init__(self, message: str = "Authorization Required") -> None:
         super().__init__(message, 401)
 
 

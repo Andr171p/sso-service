@@ -28,3 +28,5 @@ SESSION_REFRESH_IN = timedelta(days=2)
 ISSUER = "https://davalka.ru"
 # Роли пользователя по умолчанию
 DEFAULT_ROLES: list[str] = [Role.USER]
+# Время истечения ресурса в хранилище
+DEFAULT_TTL = timedelta(seconds=3600)

@@ -34,6 +34,7 @@ class UserStatus(StrEnum):
         REGISTERED: Зарегистрированный пользователь (ещё не подтверждён email).
         ACTIVE: Активны пользователь (после подтверждения email).
         BANNED: Забаненный пользователь.
+        DELETED: Удалённый пользователь (при удалении пользователь остаётся в системе)
     """
     REGISTERED = "registered"
     ACTIVE = "active"

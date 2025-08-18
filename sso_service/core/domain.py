@@ -44,7 +44,6 @@ class User(BaseModel):
         (при флаге False - пользователь больше не может входить в систему).
         created_at: Дата и время добавления пользователя.
     """
-
     id: UUID = Field(default_factory=uuid4)
     email: EmailStr | None = None
     username: str | None = None
@@ -84,7 +83,6 @@ class User(BaseModel):
 
 class Group(BaseModel):
     """Ролевые группы для пользователей"""
-
     id: UUID = Field(default_factory=uuid4)
     realm_id: UUID
     name: str
@@ -97,7 +95,6 @@ class Group(BaseModel):
 
 class UserGroup(BaseModel):
     """Привязка пользователя к группе"""
-
     user_id: UUID
     group_id: UUID
 
@@ -115,7 +112,6 @@ class Realm(BaseModel):
         (при значении False отключаются все сервисы внутри неё).
         created_at: Дата и время создания области.
     """
-
     id: UUID = Field(default_factory=uuid4)
     name: str = Field(..., max_length=MAX_NAME_LENGTH)
     slug: str
@@ -143,7 +139,6 @@ class Client(BaseModel):
         scopes: Права выдаваемые клиенту для ограничения доступа к другим клиентам.
         created_at: Дата создания клиента.
     """
-
     id: UUID = Field(default_factory=uuid4)
     realm_id: UUID
     client_id: str = Field(default_factory=generate_public_id)
@@ -205,7 +200,6 @@ class IdentityProvider(BaseModel):
 
 class UserIdentity(BaseModel):
     """Привязка аккаунта пользователя"""
-
     id: UUID = Field(default_factory=uuid4)
     user_id: UUID | None = None
     provider_id: UUID | None = None
@@ -217,7 +211,6 @@ class UserIdentity(BaseModel):
 
 class Session(BaseModel):
     """Пользовательская сессия в SSO"""
-
     session_id: UUID = Field(default_factory=uuid4)
     user_id: UUID
     expires_at: int | float
@@ -244,7 +237,6 @@ class TokenPair(BaseModel):
 
 class Claims(BaseModel):
     """Базовая модель для интроспекции JWT"""
-
     active: bool = False
     cause: str | None = None
     token_type: TokenType | None = None
