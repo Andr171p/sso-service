@@ -108,7 +108,8 @@ async def logout_user(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Session id is missing in cookies"
         ) from None
-    is_deleted = await session_store.delete(UUID(session_id))
+    key = session_store.build_key(session_id)
+    is_deleted = await session_store.delete(key)
     if not is_deleted:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,

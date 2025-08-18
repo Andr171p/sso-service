@@ -18,7 +18,9 @@ class RedisStore(BaseStore[T]):
     def build_key(self, string: str | UUID) -> str:
         return f"{self._prefix}:{string}"
 
-    async def add(self, key: str, schema: T, ttl: timedelta | int | None = DEFAULT_TTL) -> None:
+    async def add(
+            self, key: str, schema: T, ttl: timedelta | int | None = DEFAULT_TTL
+    ) -> None:
         await self._redis.set(key, schema.model_dump_json(exclude_none=True))
         if ttl:
             await self._redis.expire(key, time=ttl)

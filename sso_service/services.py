@@ -6,7 +6,7 @@ from uuid import UUID
 
 from pydantic import EmailStr
 
-from .core.base import BaseAuthService
+from .core.base import BaseAuthService, BaseStore
 from .core.constants import (
     CLIENT_ACCESS_TOKEN_EXPIRE_IN,
     DEFAULT_ROLES,
@@ -29,7 +29,6 @@ from .core.exceptions import (
 from .core.utils import current_timestamp, expires_at, format_scope
 from .database.repository import ClientRepository, GroupRepository, RealmRepository, UserRepository
 from .security import decode_token, issue_token, verify_secret
-from .storage import BaseStore
 
 logger = logging.getLogger(__name__)
 
