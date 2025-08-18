@@ -23,8 +23,8 @@ from .models import (
     IdentityProviderModel,
     RealmModel,
     UserGroupModel,
-    UserModel,
     UserIdentityModel,
+    UserModel,
 )
 
 Model = TypeVar("Model", bound=Base)
@@ -68,9 +68,7 @@ class CRUDRepository[Model: Base, Schema: BaseModel]:
             stmt = select(self.model).offset(offset).limit(limit)
             results = await self.session.execute(stmt)
             models = results.scalars().all()
-            return [
-                self.schema.model_validate(model) for model in models
-            ]
+            return [self.schema.model_validate(model) for model in models]
         except SQLAlchemyError as e:
             await self.session.rollback()
             raise ReadingError(f"Error while reading: {e}") from e
@@ -137,10 +135,7 @@ class ClientRepository(CRUDRepository[ClientModel, Client]):
             stmt = (
                 select(self.model)
                 .join(self.model.realm)
-                .where(
-                    (RealmModel.slug == realm_slug) &
-                    (self.model.client_id == client_id)
-                )
+                .where((RealmModel.slug == realm_slug) & (self.model.client_id == client_id))
             )
             result = await self.session.execute(stmt)
             model = result.scalar_one_or_none()
@@ -164,6 +159,27 @@ class UserRepository(CRUDRepository[UserModel, User]):
             await self.session.rollback()
             raise ReadingError(f"Error while reading: {e}") from e
 
+    async def get_by_provider(self, provider_user_id: str) -> User | None:
+        try:
+            stmt = (
+                select(self.model)
+                .join(UserIdentityModel, self.model.id == UserIdentityModel.user_id)
+                .where(UserIdentityModel.provider_user_id == provider_user_id)
+                .options(
+                    joinedload(self.model.user_identities),  # Загрузка связей
+                )
+                .distinct()  # Убирает дубликаты пользователей
+            )
+            result = await self.session.execute(stmt)
+
+            # Используем .unique(), чтобы объединить строки для одного пользователя
+            user = result.scalars().unique().one_or_none()
+
+            return self.schema.model_validate(user) if user else None
+        except SQLAlchemyError as e:
+            await self.session.rollback()
+            raise ReadingError(f"Error while reading: {e}") from e
+
 
 class GroupRepository(CRUDRepository[GroupModel, Group]):
     model = GroupModel
@@ -175,17 +191,12 @@ class GroupRepository(CRUDRepository[GroupModel, Group]):
                 select(self.model)
                 .join(RealmModel, GroupModel.realm_id == RealmModel.id)
                 .join(UserGroupModel, GroupModel.id == UserGroupModel.group_id)
-                .where(
-                    (UserGroupModel.user_id == user_id) &
-                    (RealmModel.slug == realm_slug)
-                )
+                .where((UserGroupModel.user_id == user_id) & (RealmModel.slug == realm_slug))
                 .options(joinedload(GroupModel.realm))
             )
             results = await self.session.execute(stmt)
             models = results.scalars().all()
-            return [
-                self.schema.model_validate(model) for model in models
-            ]
+            return [self.schema.model_validate(model) for model in models]
         except SQLAlchemyError as e:
             await self.session.rollback()
             raise ReadingError(f"Error while reading: {e}") from e
@@ -194,6 +205,15 @@ class GroupRepository(CRUDRepository[GroupModel, Group]):
 class IdentityProviderRepository(CRUDRepository[IdentityProviderModel, IdentityProvider]):
     model = IdentityProviderModel
     schema = IdentityProvider
+
+    async def get_by_name(self, name: str) -> UUID | None:
+        try:
+            stmt = select(self.model.id).where(self.model.name == name)
+            result = await self.session.execute(stmt)
+            return result.scalar_one_or_none()
+        except SQLAlchemyError as e:
+            await self.session.rollback()
+            raise ReadingError(f"Error while reading: {e}") from e
 
 
 class UserIdentityRepository(CRUDRepository[UserIdentityModel, UserIdentity]):

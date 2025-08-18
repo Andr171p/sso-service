@@ -7,7 +7,8 @@ from sqlalchemy.ext.asyncio import async_engine_from_config
 
 from alembic import context
 
-from src.sso_service.database.base import Base
+from sso_service.database.base import Base
+from sso_service.database.models import UserModel, UserIdentityModel, GroupModel, IdentityProviderModel, RealmModel, ClientModel
 from sso_service.settings import settings
 
 # this is the Alembic Config object, which provides

@@ -10,6 +10,7 @@ from ..core.enums import ClientType, GrantType, Role, UserStatus
 
 class RealmCreate(BaseModel):
     """Схема для создания области"""
+
     name: str
     slug: str
     description: str | None
@@ -17,6 +18,7 @@ class RealmCreate(BaseModel):
 
 class RealmUpdate(BaseModel):
     """Схема для обновления области"""
+
     name: str | None = None
     slug: str | None = None
     description: str | None = None
@@ -25,6 +27,7 @@ class RealmUpdate(BaseModel):
 
 class ClientCreate(BaseModel):
     """Схема для создания клиента"""
+
     realm_id: UUID
     name: str
     description: str | None = None
@@ -36,6 +39,7 @@ class ClientCreate(BaseModel):
 
 class CreatedClient(BaseModel):
     """Схема для просмотра уже созданного клиента"""
+
     id: UUID
     name: str
     description: str | None = None
@@ -56,6 +60,7 @@ class CreatedClient(BaseModel):
 
 class ClientUpdate(BaseModel):
     """Схема для обновления клиента"""
+
     name: str | None = None
     slug: str | None = None
     description: str | None = None
@@ -64,6 +69,7 @@ class ClientUpdate(BaseModel):
 
 class GroupCreate(BaseModel):
     """Схема запроса для создания группы"""
+
     name: str
     description: str | None = None
     roles: list[Role]
@@ -71,6 +77,7 @@ class GroupCreate(BaseModel):
 
 class GroupUpdate(BaseModel):
     """Схема запроса для обновления группы"""
+
     name: str | None = None
     description: str | None = None
     roles: list[Role] | None = None
@@ -78,6 +85,7 @@ class GroupUpdate(BaseModel):
 
 class ClientCredentials(BaseModel):
     """Получение токена (server2server аутентификация)"""
+
     grant_type: GrantType
     client_id: str
     client_secret: str
@@ -86,16 +94,19 @@ class ClientCredentials(BaseModel):
 
 class TokenRefresh(BaseModel):
     """Тело запроса для обновления пары токенов"""
+
     refresh_token: str
 
 
 class TokenIntrospect(BaseModel):
     """Декодирование и валидация токена"""
+
     token: str
 
 
 class UserRegistration(BaseModel):
     """Регистрация пользователя"""
+
     email: EmailStr
     username: str | None = None
     password: str
@@ -109,18 +120,21 @@ class UserRegistration(BaseModel):
 
 class UserLogin(BaseModel):
     """Аутентификация пользователя"""
+
     email: EmailStr
     password: str
 
 
 class UserRealmSwitch(BaseModel):
     """Переход пользователя из одного realm в другой"""
+
     target_realm: str
     refresh_token: str
 
 
 class UserUpdate(BaseModel):
     """Обновление статуса пользователя"""
+
     status: UserStatus
 
     @field_validator("status", mode="before")
