@@ -1,5 +1,6 @@
 from typing import Any
 
+import time
 import logging
 from uuid import UUID
 
@@ -28,7 +29,7 @@ from .core.exceptions import (
 from .core.utils import current_timestamp, expires_at, format_scope
 from .database.repository import ClientRepository, GroupRepository, RealmRepository, UserRepository
 from .security import decode_token, issue_token, verify_secret
-from .storage import RedisSessionStore
+from .storage import BaseStore
 
 logger = logging.getLogger(__name__)
 
@@ -109,7 +110,7 @@ class UserAuthService(BaseAuthService[TokenPair, UserClaims]):
             user_repository: UserRepository,
             group_repository: GroupRepository,
             realm_repository: RealmRepository,
-            session_store: RedisSessionStore
+            session_store: BaseStore[Session]
     ) -> None:
         self.user_repository = user_repository
         self.group_repository = group_repository
@@ -135,7 +136,10 @@ class UserAuthService(BaseAuthService[TokenPair, UserClaims]):
             user_id=user.id,
             expires_at=expires_at(SESSION_EXPIRE_IN)
         )
-        await self.session_store.add(session)
+        key = self.session_store.build_key(session.session_id)
+        await self.session_store.add(
+            key, session, ttl=int(session.expires_at - time.time())
+        )
         return self._generate_token_pair(payload, session.session_id)
 
     async def _give_roles(self, realm: str, user_id: UUID) -> list[str]:
@@ -185,7 +189,8 @@ class UserAuthService(BaseAuthService[TokenPair, UserClaims]):
         session_id: UUID = kwargs.get("session_id")
         if not realm:
             raise ValueError("Realm is required")
-        if not await self.session_store.exists(session_id) or session_id is None:
+        key = self.session_store.build_key(session_id)
+        if not await self.session_store.exists(key) or session_id is None:
             raise UnauthorizedError("Session not found")
         try:
             payload = decode_token(token)
@@ -206,7 +211,8 @@ class UserAuthService(BaseAuthService[TokenPair, UserClaims]):
         :param session_id: Текущая сессия пользователя.
         :return: Новая пара токенов access и refresh.
         """
-        session = await self.session_store.get(session_id)
+        key = self.session_store.build_key(session_id)
+        session = await self.session_store.get(key)
         if session is None:
             raise UnauthorizedError("Session not found or expired")
         claims = await self.introspect(token, realm=realm, session_id=session_id)
@@ -216,8 +222,8 @@ class UserAuthService(BaseAuthService[TokenPair, UserClaims]):
         claims.roles = roles
         session_delay = session.expires_at - current_timestamp()
         if session_delay < SESSION_REFRESH_THRESHOLD.total_seconds():
-            await self.session_store.update(
-                session_id, ttl=session_delay + SESSION_REFRESH_IN
+            await self.session_store.refresh_ttl(
+                key, ttl=session_delay + SESSION_REFRESH_IN
             )
         return self._generate_token_pair(
             claims.model_dump(exclude_none=True), session_id
