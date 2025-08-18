@@ -1,5 +1,6 @@
 from typing import TYPE_CHECKING, Generic, TypeVar
 
+import time
 from abc import ABC, abstractmethod
 from datetime import timedelta
 from logging import DEBUG, Formatter, Logger, StreamHandler, getLogger
@@ -8,9 +9,9 @@ from uuid import UUID
 from pydantic import BaseModel
 
 from .constants import DEFAULT_TTL, SESSION_EXPIRE_IN
-from .domain import BaseCallback, Claims, Session, TokenPair, User, UserIdentity
+from .domain import BaseCallback, Claims, Codes, Session, TokenPair, User, UserIdentity
 from .enums import UserStatus
-from .exceptions import NotFoundHTTPError
+from .exceptions import NotFoundHTTPError, UnauthorizedError
 from .utils import expires_at
 
 if TYPE_CHECKING:
@@ -20,7 +21,6 @@ if TYPE_CHECKING:
         UserRepository,
     )
     from ..services import UserAuthService
-    from ..storage import RedisStorage
 
 T = TypeVar("T", bound=BaseModel)
 C = TypeVar("C", bound=Claims)
@@ -77,9 +77,7 @@ class BaseStore(Generic[T], ABC):
         raise NotImplementedError
 
     @abstractmethod
-    async def add(
-            self, key: str, schema: T, ttl: timedelta | int | None = DEFAULT_TTL
-    ) -> None:
+    async def add(self, key: str, schema: T, ttl: timedelta | int | None = DEFAULT_TTL) -> None:
         """Добавляет объект в хранилище
 
         :param key: Уникальный ключ объекта.
@@ -193,23 +191,27 @@ class BaseOAuthProvider(BaseIdentityProvider):
         user_repository: "UserRepository",
         user_identity_repository: "UserIdentityRepository",
         identity_repository: "IdentityProviderRepository",
-        redis: "RedisStorage",
+        codes_store: BaseStore[Codes],
+        session_store: BaseStore[Session],
         api: BaseOauthAPI,
     ) -> None:
         self.user_auth_service = user_auth_service
         self.user_repository = user_repository
         self.user_identity_repository = user_identity_repository
         self.identity_repository = identity_repository
-        self.redis = redis
+        self.session_store = session_store
+        self.codes_store = codes_store
         self.api = api
 
     @abstractmethod
     async def generate_url(self) -> str: ...
 
     async def callback(self, schema: BaseCallback) -> BaseModel:
-        code_verifier = await self.redis.get_by_state(schema.state)
-        print(code_verifier)
-        return await self.api.get_access_token(schema.to_dict(code_verifier=code_verifier))
+        key = self.codes_store.build_key(schema.state)
+        codes = await self.codes_store.get(key)
+        if codes is None:
+            raise UnauthorizedError("Session not found or expired")
+        return await self.api.get_access_token(schema.to_dict(code_verifier=codes.code_verifier))
 
     async def register(self, realm: str, schema: BaseCallback) -> TokenPair:
         handle_callback = await self.callback(schema)
@@ -226,5 +228,6 @@ class BaseOAuthProvider(BaseIdentityProvider):
         roles = await self.user_auth_service._give_roles(realm, user.id)
         payload = user.to_payload(realm=realm, roles=roles)
         session = Session(user_id=user.id, expires_at=expires_at(SESSION_EXPIRE_IN))
-        await self.user_auth_service.session_store.add(session)
+        key = self.session_store.build_key(session.session_id)
+        await self.session_store.add(key, session, ttl=int(session.expires_at - time.time()))
         return self.user_auth_service._generate_token_pair(payload, session.session_id)

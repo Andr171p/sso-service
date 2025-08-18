@@ -5,7 +5,7 @@ from redis.asyncio import Redis as AsyncRedis
 
 from .core.base import BaseStore, T
 from .core.constants import DEFAULT_TTL
-from .core.domain import Session
+from .core.domain import Codes, Session
 
 
 class RedisStore(BaseStore[T]):
@@ -18,9 +18,7 @@ class RedisStore(BaseStore[T]):
     def build_key(self, string: str | UUID) -> str:
         return f"{self._prefix}:{string}"
 
-    async def add(
-            self, key: str, schema: T, ttl: timedelta | int | None = DEFAULT_TTL
-    ) -> None:
+    async def add(self, key: str, schema: T, ttl: timedelta | int | None = DEFAULT_TTL) -> None:
         await self._redis.set(key, schema.model_dump_json(exclude_none=True))
         if ttl:
             await self._redis.expire(key, time=ttl)
@@ -49,3 +47,7 @@ class RedisStore(BaseStore[T]):
 
 class RedisSessionStore(RedisStore[Session]):
     schema = Session
+
+
+class RedisCodesStore(RedisStore[Codes]):
+    schema = Codes

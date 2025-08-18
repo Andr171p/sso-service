@@ -1,7 +1,7 @@
 from typing import Any
 
-import time
 import logging
+import time
 from uuid import UUID
 
 from pydantic import EmailStr
@@ -38,12 +38,7 @@ class ClientAuthService(BaseAuthService[Token, ClientClaims]):
         self.repository = repository
 
     async def authenticate(
-            self,
-            realm: str,
-            grant_type: str,
-            client_id: str,
-            client_secret: str,
-            scope: str
+        self, realm: str, grant_type: str, client_id: str, client_secret: str, scope: str
     ) -> Token:
         if grant_type != GrantType.CLIENT_CREDENTIALS:
             raise UnsupportedGrantTypeError("Unsupported grant type")
@@ -63,13 +58,12 @@ class ClientAuthService(BaseAuthService[Token, ClientClaims]):
             expires_in=CLIENT_ACCESS_TOKEN_EXPIRE_IN,
         )
         return Token(
-            access_token=access_token,
-            expires_at=expires_at(CLIENT_ACCESS_TOKEN_EXPIRE_IN)
+            access_token=access_token, expires_at=expires_at(CLIENT_ACCESS_TOKEN_EXPIRE_IN)
         )
 
     @staticmethod
     def _validate_scopes(
-            requested_scopes: list[str], client_scopes: list[str], strict_mode: bool = False
+        requested_scopes: list[str], client_scopes: list[str], strict_mode: bool = False
     ) -> list[str] | None:
         """Сверяет запрошенный права с разрешёнными.
 
@@ -105,11 +99,11 @@ class ClientAuthService(BaseAuthService[Token, ClientClaims]):
 
 class UserAuthService(BaseAuthService[TokenPair, UserClaims]):
     def __init__(
-            self,
-            user_repository: UserRepository,
-            group_repository: GroupRepository,
-            realm_repository: RealmRepository,
-            session_store: BaseStore[Session]
+        self,
+        user_repository: UserRepository,
+        group_repository: GroupRepository,
+        realm_repository: RealmRepository,
+        session_store: BaseStore[Session],
     ) -> None:
         self.user_repository = user_repository
         self.group_repository = group_repository
@@ -119,9 +113,7 @@ class UserAuthService(BaseAuthService[TokenPair, UserClaims]):
     async def register(self, user: User) -> User:
         return await self.user_repository.create(user)
 
-    async def authenticate(
-            self, realm: str, email: EmailStr, password: str
-    ) -> TokenPair:
+    async def authenticate(self, realm: str, email: EmailStr, password: str) -> TokenPair:
         user = await self.user_repository.get_by_email(email)
         if user is None:
             raise InvalidCredentialsError("Invalid email")
@@ -131,14 +123,9 @@ class UserAuthService(BaseAuthService[TokenPair, UserClaims]):
             raise InvalidCredentialsError("Invalid password")
         roles = await self._give_roles(realm, user.id)
         payload = user.to_payload(realm=realm, roles=roles)
-        session = Session(
-            user_id=user.id,
-            expires_at=expires_at(SESSION_EXPIRE_IN)
-        )
+        session = Session(user_id=user.id, expires_at=expires_at(SESSION_EXPIRE_IN))
         key = self.session_store.build_key(session.session_id)
-        await self.session_store.add(
-            key, session, ttl=int(session.expires_at - time.time())
-        )
+        await self.session_store.add(key, session, ttl=int(session.expires_at - time.time()))
         return self._generate_token_pair(payload, session.session_id)
 
     async def _give_roles(self, realm: str, user_id: UUID) -> list[str]:
@@ -167,20 +154,16 @@ class UserAuthService(BaseAuthService[TokenPair, UserClaims]):
         :return: Объект с access/refresh и прочими метаданными.
         """
         access_token = issue_token(
-            token_type=TokenType.ACCESS,
-            payload=payload,
-            expires_in=USER_ACCESS_TOKEN_EXPIRE_IN
+            token_type=TokenType.ACCESS, payload=payload, expires_in=USER_ACCESS_TOKEN_EXPIRE_IN
         )
         refresh_token = issue_token(
-            token_type=TokenType.REFRESH,
-            payload=payload,
-            expires_in=USER_REFRESH_TOKEN_EXPIRE_IN
+            token_type=TokenType.REFRESH, payload=payload, expires_in=USER_REFRESH_TOKEN_EXPIRE_IN
         )
         return TokenPair(
             access_token=access_token,
             refresh_token=refresh_token,
             session_id=session_id,
-            expires_at=expires_at(USER_ACCESS_TOKEN_EXPIRE_IN)
+            expires_at=expires_at(USER_ACCESS_TOKEN_EXPIRE_IN),
         )
 
     async def introspect(self, token: str, **kwargs) -> UserClaims:
@@ -221,19 +204,11 @@ class UserAuthService(BaseAuthService[TokenPair, UserClaims]):
         claims.roles = roles
         session_delay = session.expires_at - current_timestamp()
         if session_delay < SESSION_REFRESH_THRESHOLD.total_seconds():
-            await self.session_store.refresh_ttl(
-                key, ttl=session_delay + SESSION_REFRESH_IN
-            )
-        return self._generate_token_pair(
-            claims.model_dump(exclude_none=True), session_id
-        )
+            await self.session_store.refresh_ttl(key, ttl=session_delay + SESSION_REFRESH_IN)
+        return self._generate_token_pair(claims.model_dump(exclude_none=True), session_id)
 
     async def switch_realm(
-            self,
-            current_realm: str,
-            target_realm: str,
-            refresh_token: str,
-            session_id: UUID | str
+        self, current_realm: str, target_realm: str, refresh_token: str, session_id: UUID | str
     ) -> TokenPair:
         """Осуществляет переход пользователя из одного realm в другой
         без повторной аутентификации.
@@ -249,9 +224,7 @@ class UserAuthService(BaseAuthService[TokenPair, UserClaims]):
         session = await self.session_store.get(session_id)
         if not session:
             raise UnauthorizedError("Invalid session or session expired")
-        claims = await self.introspect(
-            refresh_token, realm=current_realm, session_id=session_id
-        )
+        claims = await self.introspect(refresh_token, realm=current_realm, session_id=session_id)
         if not claims.active:
             raise UnauthorizedError(claims.cause)
         if not await self._can_switch_realm(target_realm):

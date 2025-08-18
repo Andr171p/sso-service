@@ -19,7 +19,7 @@ from .providers.vk import VKControl
 from .providers.yandex import YandexControl
 from .services import ClientAuthService, UserAuthService
 from .settings import Settings, settings
-from .storage import RedisSessionStore, RedisStorage
+from .storage import RedisCodesStore, RedisSessionStore
 
 
 class AppProvider(Provider):
@@ -72,8 +72,8 @@ class AppProvider(Provider):
         return RedisSessionStore(redis)
 
     @provide(scope=Scope.APP)
-    def get_codes_store(self, redis: AsyncRedis) -> RedisStorage:  # noqa: PLR6301
-        return RedisStorage(redis)
+    def get_codes_store(self, redis: AsyncRedis) -> RedisCodesStore:  # noqa: PLR6301
+        return RedisCodesStore(redis)
 
     @provide(scope=Scope.REQUEST)
     def get_client_auth_service(  # noqa: PLR6301
@@ -115,7 +115,8 @@ class AppProvider(Provider):
         user_repository: UserRepository,
         user_identity_repository: UserIdentityRepository,
         identity_repository: IdentityProviderRepository,
-        redis: RedisStorage,
+        session_store: RedisSessionStore,
+        codes_store: RedisCodesStore,
         api: VKApi,
     ) -> VKControl:
         return VKControl(
@@ -123,7 +124,8 @@ class AppProvider(Provider):
             user_repository=user_repository,
             user_identity_repository=user_identity_repository,
             identity_repository=identity_repository,
-            redis=redis,
+            session_store=session_store,
+            codes_store=codes_store,
             api=api,
         )
 
@@ -134,7 +136,8 @@ class AppProvider(Provider):
         user_repository: UserRepository,
         user_identity_repository: UserIdentityRepository,
         identity_repository: IdentityProviderRepository,
-        redis: RedisStorage,
+        session_store: RedisSessionStore,
+        codes_store: RedisCodesStore,
         api: YandexApi,
     ) -> YandexControl:
         return YandexControl(
@@ -142,7 +145,8 @@ class AppProvider(Provider):
             user_repository=user_repository,
             user_identity_repository=user_identity_repository,
             identity_repository=identity_repository,
-            redis=redis,
+            session_store=session_store,
+            codes_store=codes_store,
             api=api,
         )
 
