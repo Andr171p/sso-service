@@ -23,7 +23,7 @@ from pydantic import (
 
 from ..settings import settings
 from .constants import ISSUER, MAX_NAME_LENGTH, MIN_GRANT_TYPES_COUNT
-from .enums import ClientType, GrantType, Role, TokenType, UserStatus
+from .enums import ClientType, GrantType, Role, TokenType, UserStatus, ProtocolType
 from .utils import (
     current_datetime,
     current_timestamp,
@@ -39,14 +39,12 @@ class User(BaseModel):
     Attributes:
         id: Уникальный идентификатор пользователя во всей системе.
         email: Адрес почты пользователя для подтверждения аккаунта (опционален).
-        username: Уникальное имя пользователя, логин (опционален).
         status: Статус пользователя в системе.
         (при флаге False - пользователь больше не может входить в систему).
         created_at: Дата и время добавления пользователя.
     """
     id: UUID = Field(default_factory=uuid4)
     email: EmailStr
-    username: str | None = None
     password: SecretStr | None = None
     status: UserStatus = Field(default=UserStatus.REGISTERED)
     created_at: datetime = Field(default_factory=current_datetime)
@@ -57,7 +55,7 @@ class User(BaseModel):
         from ..security import hash_secret
 
         if self.password is None:
-            raise ValueError("")
+            raise ValueError("Password must be provided!")
         self.password = SecretStr(hash_secret(self.password.get_secret_value()))
         return self
 
@@ -186,25 +184,35 @@ class Client(BaseModel):
 
 
 class IdentityProvider(BaseModel):
-    """Провайдер аутентификации и регистрации"""
-
+    """Провайдер аутентификации и регистрации.
+    Например: Google, VK, Yandex ...
+    """
     id: UUID = Field(default_factory=uuid4)
     name: str
-    type: str
+    protocol: ProtocolType
     client_id: str
     client_secret: SecretStr
     scopes: list[str] = Field(default_factory=list)
+    enabled: bool = True
 
     model_config = ConfigDict(from_attributes=True)
 
 
 class UserIdentity(BaseModel):
-    """Привязка аккаунта пользователя"""
+    """Привязка аккаунта пользователя к провайдеру.
+
+    Attributes:
+        id: Уникальный идентификатор.
+        user_id: Пользователь к которому привязан аккаунт.
+        provider_id: Провайдер, которому принадлежит аккаунт пользователя.
+        provider_user_id: Уникальный идентификатор пользователя у провайдера.
+        email: Почта, которая привязана к провайдеру.
+    """
     id: UUID = Field(default_factory=uuid4)
     user_id: UUID | None = None
     provider_id: UUID | None = None
     provider_user_id: str
-    email: str
+    email: EmailStr
 
     model_config = ConfigDict(from_attributes=True)
 

@@ -31,11 +31,21 @@ class UserStatus(StrEnum):
 
     Attributes:
         REGISTERED: Зарегистрированный пользователь (ещё не подтверждён email).
+        EMAIL_VERIFIED: Пользователь с подтверждённым email.
         ACTIVE: Активны пользователь (после подтверждения email).
+        INACTIVE: Неактивный пользователь (не совершал действия долгое время).
         BANNED: Забаненный пользователь.
-        DELETED: Удалённый пользователь (при удалении пользователь остаётся в системе)
+        DELETED: Удалённый пользователь (при удалении пользователь остаётся в системе).
     """
     REGISTERED = "registered"
+    EMAIL_VERIFIED = "email_verified"
     ACTIVE = "active"
+    INACTIVE = "inactive"
     BANNED = "banned"
     DELETED = "deleted"
+
+
+class ProtocolType(StrEnum):
+    """Тип протокола аутентификации через провайдера"""
+    OAUTH = "oauth"
+    OIDC = "oidc"

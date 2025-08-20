@@ -69,7 +69,7 @@ class AppProvider(Provider):
 
     @provide(scope=Scope.APP)
     def get_session_store(self, redis: AsyncRedis) -> RedisSessionStore:  # noqa: PLR6301
-        return RedisSessionStore(redis)
+        return RedisSessionStore(redis, prefix="session")
 
     @provide(scope=Scope.APP)
     def get_codes_store(self, redis: AsyncRedis) -> RedisCodesStore:  # noqa: PLR6301
