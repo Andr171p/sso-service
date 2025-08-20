@@ -18,13 +18,15 @@ class RedisStore(BaseStore[T]):
     def _build_key(self, string: str | UUID) -> str:
         return f"{self._prefix}:{string}"
 
-    async def add(self, key: str, schema: T, ttl: timedelta | int | None = DEFAULT_TTL) -> None:
+    async def add(
+            self, key: str | UUID, schema: T, ttl: timedelta | int | None = DEFAULT_TTL
+    ) -> None:
         key = self._build_key(key)
         await self._redis.set(key, schema.model_dump_json(exclude_none=True))
         if ttl:
             await self._redis.expire(key, time=ttl)
 
-    async def get(self, key: str) -> T | None:
+    async def get(self, key: str | UUID) -> T | None:
         key = self._build_key(key)
         data = await self._redis.get(key)
         if data is None:
@@ -32,11 +34,11 @@ class RedisStore(BaseStore[T]):
         json_string = data.decode("utf-8")
         return self.schema.model_validate_json(json_string)
 
-    async def exists(self, key: str) -> bool:
+    async def exists(self, key: str | UUID) -> bool:
         key = self._build_key(key)
         return await self._redis.exists(key)
 
-    async def refresh_ttl(self, key: str, ttl: timedelta) -> T | None:
+    async def refresh_ttl(self, key: str | UUID, ttl: timedelta) -> T | None:
         key = self._build_key(key)
         if not await self.exists(key):
             return None
@@ -44,7 +46,7 @@ class RedisStore(BaseStore[T]):
             await self._redis.expire(key, ttl)
         return await self.get(key)
 
-    async def delete(self, key: str) -> bool:
+    async def delete(self, key: str | UUID) -> bool:
         key = self._build_key(key)
         deleted_keys = await self._redis.delete(key)
         return deleted_keys > 0

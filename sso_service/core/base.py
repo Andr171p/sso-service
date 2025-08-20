@@ -32,7 +32,7 @@ class BaseStore(Generic[T], ABC):
         raise NotImplementedError
 
     @abstractmethod
-    async def add(self, key: str, schema: T, ttl: timedelta | int | None = DEFAULT_TTL) -> None:
+    async def add(self, key: str | UUID, schema: T, ttl: timedelta | int | None = DEFAULT_TTL) -> None:
         """Добавляет объект в хранилище
 
         :param key: Уникальный ключ объекта.
@@ -42,7 +42,7 @@ class BaseStore(Generic[T], ABC):
         raise NotImplementedError
 
     @abstractmethod
-    async def get(self, key: str) -> T | None:
+    async def get(self, key: str | UUID) -> T | None:
         """Получает объект из хранилища по ключу.
 
         :param key: Уникальный ключ объекта.
@@ -50,7 +50,7 @@ class BaseStore(Generic[T], ABC):
         """
         raise NotImplementedError
 
-    async def pop(self, key: str) -> T | None:
+    async def pop(self, key: str | UUID) -> T | None:
         """Извлекает и удаляет объект из хранилища по ключу.
 
         :param key: Уникальный ключ ресурса.
@@ -63,7 +63,7 @@ class BaseStore(Generic[T], ABC):
         return schema
 
     @abstractmethod
-    async def exists(self, key: str) -> bool:
+    async def exists(self, key: str | UUID) -> bool:
         """Проверяет наличие объекта в хранилище по его ключу.
 
         :param key: Уникальный ключ
@@ -72,7 +72,7 @@ class BaseStore(Generic[T], ABC):
         raise NotImplementedError
 
     @abstractmethod
-    async def refresh_ttl(self, key: str, ttl: timedelta) -> T | None:
+    async def refresh_ttl(self, key: str | UUID, ttl: timedelta) -> T | None:
         """Обновляет время жизни (TTL) для существующего объекта.
 
         :param key: Ключ объекта.
@@ -82,7 +82,7 @@ class BaseStore(Generic[T], ABC):
         raise NotImplementedError
 
     @abstractmethod
-    async def delete(self, key: str) -> bool:
+    async def delete(self, key: str | UUID) -> bool:
         """Удаляет объект из хранилища по ключу.
 
         :param key: Ключ объекта.
