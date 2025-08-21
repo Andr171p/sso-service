@@ -3,6 +3,8 @@ from typing import Any
 import time
 from abc import ABC, abstractmethod
 
+from cachetools.func import ttl_cache
+
 from ..core.base import BaseStore
 from ..core.constants import SESSION_EXPIRE_IN
 from ..core.domain import BaseCallback, IdentityProvider, Session, TokenPair, UserIdentity
@@ -10,6 +12,9 @@ from ..core.exceptions import NotEnabledError, NotRegisteredResourceError
 from ..core.utils import expires_at
 from ..database.repository import IdentityProviderRepository, UserRepository
 from ..services import generate_token_pair, give_roles
+
+CACHE_MAXSIZE = 128
+PROVIDER_TTL = 60 * 60 * 3
 
 
 class BaseOAuthProvider(ABC):
@@ -23,6 +28,7 @@ class BaseOAuthProvider(ABC):
     user_repository: UserRepository
     session_store: BaseStore[Session]
 
+    @ttl_cache(maxsize=CACHE_MAXSIZE, ttl=PROVIDER_TTL)
     async def _get_provider(self) -> IdentityProvider:
         """Получает провайдера по его уникальному имени"""
         provider = await self.provider_repository.get_by_name(self.name)
