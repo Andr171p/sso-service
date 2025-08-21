@@ -9,7 +9,8 @@ ENV PATH="/opt/venv/bin:$PATH"
 
 COPY pyproject.toml ./
 
-RUN uv pip install --no-cache --system .
+RUN uv pip install --no-cache --system . && \
+    /opt/venv/bin/pip install alembic
 
 FROM python:3.13-slim
 
