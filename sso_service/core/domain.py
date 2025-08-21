@@ -266,6 +266,7 @@ class ClientClaims(Claims):
 
 
 class UserClaims(Claims):
+    email: EmailStr | None = None
     status: UserStatus | None = None
     realm: str | None = None
     roles: list[Role] | None = None

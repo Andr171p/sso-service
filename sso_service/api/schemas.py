@@ -49,10 +49,6 @@ class CreatedClient(BaseModel):
 
     model_config = ConfigDict(from_attributes=True)
 
-    @field_validator("client_secret", mode="before")
-    def validate_secret(cls, client_secret: SecretStr) -> str:
-        return client_secret.get_secret_value()
-
 
 class ClientUpdate(BaseModel):
     """Схема для обновления клиента"""
@@ -97,7 +93,6 @@ class TokenIntrospect(BaseModel):
 class UserRegistration(BaseModel):
     """Регистрация пользователя"""
     email: EmailStr
-    username: str | None = None
     password: str
 
     model_config = ConfigDict(from_attributes=True)
