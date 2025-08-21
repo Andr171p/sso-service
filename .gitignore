@@ -85,3 +85,5 @@ scripts
 .docker
 DIORag.iml
 assets
+.gitignore
+.dockerignore
