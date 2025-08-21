@@ -9,13 +9,15 @@ ENV PATH="/opt/venv/bin:$PATH"
 
 COPY pyproject.toml ./
 
-RUN uv pip install --no-cache --system .
+RUN uv pip install --no-cache --system . alembic
 
 FROM python:3.13-slim
 
 WORKDIR /sso_service
 
 COPY --from=builder /opt/venv /opt/venv
+COPY alembic.ini ./
+COPY alembic ./alembic/
 
 ENV PATH="/opt/venv/bin:$PATH"
 ENV PYTHONUNBUFFERED=1
