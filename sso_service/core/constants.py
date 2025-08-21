@@ -30,3 +30,9 @@ ISSUER = "https://davalka.ru"
 DEFAULT_ROLES: list[str] = [Role.USER]
 # Время истечения ресурса в хранилище
 DEFAULT_TTL = timedelta(seconds=3600)
+# Хеширование паролей
+MEMORY_COST = 100  # Размер выделяемой памяти в mb
+TIME_COST = 2
+PARALLELISM = 2
+SALT_SIZE = 16
+ROUNDS = 14  # Количество раундов для хеширования
