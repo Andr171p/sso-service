@@ -1,27 +1,31 @@
 FROM python:3.13-slim as builder
 
-WORKDIR /sso_service
+WORKDIR /app
 
-RUN pip install --no-cache-dir uv && \
-    uv venv -p python3.13 /opt/venv
-
-ENV PATH="/opt/venv/bin:$PATH"
-
-COPY pyproject.toml ./
-
-RUN uv sync --frozen --no-cache
-
-FROM python:3.13-slim
-
-WORKDIR /sso_service
-
-COPY --from=builder /opt/venv /opt/venv
-
-ENV PATH="/opt/venv/bin:$PATH"
-ENV PYTHONUNBUFFERED=1
-
+RUN pip install uv
+COPY pyproject.toml .
+RUN uv lock && uv sync --frozen --no-cache
 COPY . .
 
-RUN /opt/venv/bin/alembic upgrade head
+FROM python:3.13-slim as runtime
 
-CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000"]
+WORKDIR /app
+
+COPY --from=builder /app/.venv /app/.venv
+ENV PATH="/app/.venv/bin:$PATH"
+
+COPY --from=builder /app /app
+
+RUN echo '#!/bin/sh\n\
+set -e\n\
+\n\
+echo "Running migrations..."\n\
+alembic upgrade head\n\
+\n\
+echo "Starting application..."\n\
+exec uvicorn main:app --host 0.0.0.0 --port 8000\n\
+' > /app/entrypoint.sh && chmod +x /app/entrypoint.sh
+
+ENV PYTHONUNBUFFERED=1
+
+ENTRYPOINT ["/app/entrypoint.sh"]
