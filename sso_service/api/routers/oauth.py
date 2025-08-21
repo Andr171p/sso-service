@@ -5,7 +5,8 @@ from dishka.integrations.fastapi import FromDishka as Depends
 from fastapi import APIRouter, status
 
 from ...core.domain import ClientClaims, Token
-from ...services import ClientAuthService
+from ...providers import ClientCredentialsProvider
+from ...services import ClientTokenService
 from ..schemas import ClientCredentials, TokenIntrospect
 
 logger = logging.getLogger(__name__)
@@ -23,9 +24,9 @@ oauth_router = APIRouter(prefix="/{realm}/oauth", tags=["OAuth"], route_class=Di
 async def issue_token(
         realm: str,
         credentials: ClientCredentials,
-        service: Depends[ClientAuthService]
+        provider: Depends[ClientCredentialsProvider]
 ) -> Token:
-    return await service.authenticate(
+    return await provider.authenticate(
         realm=realm,
         grant_type=credentials.grant_type,
         client_id=credentials.client_id,
@@ -44,6 +45,6 @@ async def issue_token(
 async def introspect_token(
         realm: str,
         token: TokenIntrospect,
-        service: Depends[ClientAuthService]
+        service: Depends[ClientTokenService]
 ) -> ClientClaims:
     return await service.introspect(token.token, realm=realm)

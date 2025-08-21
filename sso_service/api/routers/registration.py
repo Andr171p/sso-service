@@ -5,7 +5,7 @@ from dishka.integrations.fastapi import FromDishka as Depends
 from fastapi import APIRouter, status
 
 from ...core.domain import User
-from ...services import UserAuthService
+from ...providers import UserCredentialsProvider
 from ..schemas import UserRegistration
 
 logger = logging.getLogger(__name__)
@@ -25,8 +25,8 @@ registration_router = APIRouter(
     summary="Регистрирует пользователя"
 )
 async def register_user(
-        user: UserRegistration, service: Depends[UserAuthService]
+        user: UserRegistration, provider: Depends[UserCredentialsProvider]
 ) -> User:
     user = User.model_validate(user)
     user = user.hash_password()
-    return await service.register(user)
+    return await provider.register(user)

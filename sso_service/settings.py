@@ -4,7 +4,6 @@ from pathlib import Path
 
 import pytz
 from dotenv import load_dotenv
-from pydantic import BaseModel
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 # Корневая директория проекта
@@ -15,7 +14,7 @@ ENV_PATH = BASE_DIR / ".env"
 TIMEZONE = "Europe/Moscow"
 moscow_tz = pytz.timezone(TIMEZONE)
 
-load_dotenv()
+load_dotenv(ENV_PATH)
 
 
 class VKSettings(BaseSettings):
@@ -59,15 +58,6 @@ class RedisSettings(BaseSettings):
         return f"redis://{self.host}:{self.port}/0"
 
 
-class SQLiteSettings(BaseModel):
-    driver: str = "aiosqlite"
-    filename: str = "db.sqlite3"
-
-    @property
-    def sqlalchemy_url(self) -> str:
-        return f"sqlite+{self.driver}:///{BASE_DIR}/{self.filename}"
-
-
 class PostgresSettings(BaseSettings):
     user: str = ""
     password: str = ""
@@ -87,7 +77,6 @@ class Settings(BaseSettings):
     vk_settings: VKSettings = VKSettings()
     yandex_settings: YandexSettings = YandexSettings()
     secret_settings: SecretSettings = SecretSettings()
-    sqlite: SQLiteSettings = SQLiteSettings()
     postgres: PostgresSettings = PostgresSettings()
     jwt: JWTSettings = JWTSettings()
     redis: RedisSettings = RedisSettings()

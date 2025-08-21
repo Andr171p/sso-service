@@ -183,3 +183,8 @@ class UserTokenService:
             logger.warning("Realm is not enabled for switching!")
             return False
         return True
+
+    async def revoke(self, session_id: UUID) -> None:
+        is_deleted = await self.session_store.delete(session_id)
+        if not is_deleted:
+            raise UnauthorizedError("Session expired, maybe already logout")

@@ -235,22 +235,6 @@ class GroupRepository(CRUDRepository[GroupModel, Group]):
     model = GroupModel
     schema = Group
 
-    async def get_by_user(self, realm_slug: str, user_id: UUID) -> list[Group]:
-        try:
-            stmt = (
-                select(self.model)
-                .join(RealmModel, GroupModel.realm_id == RealmModel.id)
-                .join(UserGroupModel, GroupModel.id == UserGroupModel.group_id)
-                .where((UserGroupModel.user_id == user_id) & (RealmModel.slug == realm_slug))
-                .options(joinedload(GroupModel.realm))
-            )
-            results = await self.session.execute(stmt)
-            models = results.scalars().all()
-            return [self.schema.model_validate(model) for model in models]
-        except SQLAlchemyError as e:
-            await self.session.rollback()
-            raise ReadingError(f"Error while reading: {e}") from e
-
 
 class IdentityProviderRepository(CRUDRepository[IdentityProviderModel, IdentityProvider]):
     model = IdentityProviderModel
@@ -265,8 +249,3 @@ class IdentityProviderRepository(CRUDRepository[IdentityProviderModel, IdentityP
         except SQLAlchemyError as e:
             await self.session.rollback()
             raise ReadingError(f"Error while reading: {e}") from e
-
-
-class UserIdentityRepository(CRUDRepository[UserIdentityModel, UserIdentity]):
-    model = UserIdentityModel
-    schema = UserIdentity
