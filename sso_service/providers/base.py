@@ -44,7 +44,7 @@ class BaseOAuthProvider(ABC):
         raise NotImplementedError
 
     @abstractmethod
-    async def get_userinfo(self, callback: BaseCallback) -> dict[str, Any]:
+    async def get_userinfo(self, access_token: str) -> dict[str, Any]:
         """Получение информации о пользователе от провайдера"""
         raise NotImplementedError
 
@@ -54,8 +54,8 @@ class BaseOAuthProvider(ABC):
         raise NotImplementedError
 
     async def register(self, realm: str, callback: BaseCallback) -> TokenPair:
-        callback = await self._handle_callback(callback)
-        userinfo = await self.get_userinfo(callback.model_dump())
+        access_token = await self._handle_callback(callback)
+        userinfo = await self.get_userinfo(access_token)
         user = await self.user_repository.create_with_identity(UserIdentity(**userinfo))
         roles = await give_roles(realm, user.id, self.user_repository)
         payload = user.to_payload(realm=realm, roles=roles)

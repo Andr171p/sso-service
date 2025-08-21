@@ -209,6 +209,12 @@ class UserRepository(CRUDRepository[UserModel, User]):
             raise ReadingError(f"Error while reading: {e}") from e
 
     async def get_groups(self, realm_slug: str, id: UUID) -> list[Group]:  # noqa: A002
+        """Возвращает группы пользователя в которых он состоит
+
+        :param realm_slug: Уникальное имя realm.
+        :param id: Идентификатор пользователя.
+        :return: Список групп пользователя
+        """
         try:
             stmt = (
                 select(GroupModel)

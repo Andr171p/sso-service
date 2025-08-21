@@ -27,7 +27,7 @@ SESSION_REFRESH_IN = timedelta(days=2)
 # Создатель токенов
 ISSUER = "https://davalka.ru"
 # Роли пользователя по умолчанию
-DEFAULT_ROLES: list[str] = [Role.USER]
+DEFAULT_ROLES: list[Role] = [Role.USER]
 # Время истечения ресурса в хранилище
 DEFAULT_TTL = timedelta(seconds=3600)
 # Хеширование паролей

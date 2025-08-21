@@ -131,5 +131,5 @@ async def switch_realm(
         current_realm=realm,
         target_realm=user.target_realm,
         refresh_token=user.refresh_token,
-        session_id=session_id
+        session_id=UUID(session_id)
     )

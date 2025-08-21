@@ -80,7 +80,7 @@ class UserCredentialsProvider:
 
     async def authenticate(self, realm: str, email: EmailStr, password: str) -> TokenPair:
         user = await self.repository.get_by_email(email)
-        if user is None:
+        if user is None or user.password is None:
             raise InvalidCredentialsError("Invalid email")
         if user.status == UserStatus.BANNED:
             raise NotEnabledError("User is banned")

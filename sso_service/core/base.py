@@ -22,7 +22,7 @@ class BaseStore[T: BaseModel](ABC):
     """
 
     @abstractmethod
-    def _build_key(self, string: str | UUID | None) -> str:
+    def _build_key(self, string: str | UUID) -> str:
         """Генерирует уникальный ключ для идентификации ресурсов в хранилище.
         Ключ должен быть уникальным и не допускать коллизий.
 

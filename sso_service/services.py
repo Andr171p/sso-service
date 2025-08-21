@@ -1,6 +1,7 @@
 from typing import Any
 
 import logging
+from datetime import timedelta
 from uuid import UUID
 
 from .core.base import BaseStore
@@ -12,7 +13,7 @@ from .core.constants import (
     USER_REFRESH_TOKEN_EXPIRE_IN,
 )
 from .core.domain import ClientClaims, Session, TokenPair, UserClaims
-from .core.enums import TokenType, UserStatus
+from .core.enums import Role, TokenType, UserStatus
 from .core.exceptions import (
     InvalidTokenError,
     PermissionDeniedError,
@@ -55,7 +56,7 @@ async def give_roles(
         realm: str,
         user_id: UUID,
         user_repository: UserRepository
-) -> list[str]:
+) -> list[Role]:
     """Возвращает список ролей пользователя в указанном realm.
 
     Получает все группы пользователя в realm и собирает их роли в единый список.
@@ -69,7 +70,7 @@ async def give_roles(
     groups = await user_repository.get_groups(realm, user_id)
     if not groups:
         return DEFAULT_ROLES
-    roles: set[str] = {role for group in groups for role in group.roles}
+    roles: set[Role] = {role for group in groups for role in group.roles}
     return list(roles)
 
 
@@ -148,17 +149,17 @@ class UserTokenService:
         claims = await self.introspect(token, realm=realm, session_id=session_id)
         if not claims.active:
             raise UnauthorizedError(claims.cause)
-        roles = await give_roles(realm, UUID(claims.sub))
+        roles = await give_roles(realm, UUID(claims.sub), self.user_repository)
         claims.roles = roles
         session_delay = session.expires_at - current_timestamp()
         if session_delay < SESSION_REFRESH_THRESHOLD.total_seconds():
             await self.session_store.refresh_ttl(
-                session_id, ttl=session_delay + SESSION_REFRESH_IN
+                session_id, ttl=timedelta(seconds=session_delay) + SESSION_REFRESH_IN
             )
         return generate_token_pair(claims.model_dump(exclude_none=True), session_id)
 
     async def switch_realm(
-            self, current_realm: str, target_realm: str, refresh_token: str, session_id: UUID | str
+            self, current_realm: str, target_realm: str, refresh_token: str, session_id: UUID
     ) -> TokenPair:
         """Осуществляет переход пользователя из одного realm в другой
         без повторной аутентификации.
@@ -180,8 +181,10 @@ class UserTokenService:
         if not await self._can_switch_realm(target_realm):
             raise PermissionDeniedError("Realm switching not allowed")
         user_id = UUID(claims.sub)
-        roles = await give_roles(target_realm, user_id)
+        roles = await give_roles(target_realm, user_id, self.user_repository)
         user = await self.user_repository.read(user_id)
+        if user is None:
+            raise UnauthorizedError("User not found")
         if user.status == UserStatus.BANNED:
             raise PermissionDeniedError("User is banned")
         payload = user.to_payload(realm=target_realm, roles=roles)
