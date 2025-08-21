@@ -7,7 +7,7 @@ from dotenv import load_dotenv
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 # Корневая директория проекта
-BASE_DIR = Path(__file__).resolve().parent.parent.parent
+BASE_DIR = Path(__file__).resolve().parent.parent
 # Секретные переменные
 ENV_PATH = BASE_DIR / ".env"
 # Временная зона

@@ -7,9 +7,9 @@ RUN pip install --no-cache-dir uv && \
 
 ENV PATH="/opt/venv/bin:$PATH"
 
-COPY pyproject.toml requirements.txt ./
+COPY pyproject.toml ./
 
-RUN uv pip install --no-cache -r requirements.txt
+RUN uv pip install --no-cache --system .
 
 FROM python:3.13-slim
 
@@ -20,6 +20,6 @@ COPY --from=builder /opt/venv /opt/venv
 ENV PATH="/opt/venv/bin:$PATH"
 ENV PYTHONUNBUFFERED=1
 
-COPY . .
+RUN alembic upgrade head
 
-CMD alembic upgrade head && ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000"]
+CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000"]

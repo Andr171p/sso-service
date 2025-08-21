@@ -1,8 +1,8 @@
-"""init
+"""Initial revision
 
-Revision ID: 3434f28d3efd
+Revision ID: 69bc82270195
 Revises: 
-Create Date: 2025-08-17 00:47:53.710729
+Create Date: 2025-08-21 12:56:56.660588
 
 """
 from typing import Sequence, Union
@@ -12,7 +12,7 @@ import sqlalchemy as sa
 
 
 # revision identifiers, used by Alembic.
-revision: str = '3434f28d3efd'
+revision: str = '69bc82270195'
 down_revision: Union[str, Sequence[str], None] = None
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
@@ -24,11 +24,16 @@ def upgrade() -> None:
     op.create_table('identity_providers',
     sa.Column('name', sa.String(), nullable=False),
     sa.Column('protocol', sa.String(), nullable=False),
+    sa.Column('client_id', sa.String(), nullable=False),
+    sa.Column('client_secret', sa.String(), nullable=False),
     sa.Column('scopes', sa.ARRAY(sa.String()), nullable=False),
+    sa.Column('enabled', sa.Boolean(), nullable=False),
     sa.Column('id', sa.Uuid(), server_default=sa.text('gen_random_uuid()'), nullable=False),
     sa.Column('created_at', sa.DateTime(timezone=True), server_default=sa.text('now()'), nullable=False),
     sa.Column('updated_at', sa.DateTime(timezone=True), server_default=sa.text('now()'), nullable=False),
     sa.PrimaryKeyConstraint('id'),
+    sa.UniqueConstraint('client_id'),
+    sa.UniqueConstraint('client_secret'),
     sa.UniqueConstraint('name')
     )
     op.create_table('realms',
@@ -44,14 +49,14 @@ def upgrade() -> None:
     sa.UniqueConstraint('slug')
     )
     op.create_table('users',
-    sa.Column('email', sa.String(), nullable=True),
-    sa.Column('username', sa.String(), nullable=True),
+    sa.Column('email', sa.String(), nullable=False),
     sa.Column('password', sa.String(), nullable=True),
     sa.Column('status', sa.String(), nullable=False),
     sa.Column('id', sa.Uuid(), server_default=sa.text('gen_random_uuid()'), nullable=False),
     sa.Column('created_at', sa.DateTime(timezone=True), server_default=sa.text('now()'), nullable=False),
     sa.Column('updated_at', sa.DateTime(timezone=True), server_default=sa.text('now()'), nullable=False),
-    sa.PrimaryKeyConstraint('id')
+    sa.PrimaryKeyConstraint('id'),
+    sa.UniqueConstraint('email')
     )
     op.create_table('clients',
     sa.Column('realm_id', sa.Uuid(), nullable=False),
@@ -90,7 +95,7 @@ def upgrade() -> None:
     sa.Column('user_id', sa.Uuid(), nullable=False),
     sa.Column('provider_id', sa.Uuid(), nullable=False),
     sa.Column('provider_user_id', sa.String(), nullable=False),
-    sa.Column('email', sa.String(), nullable=True),
+    sa.Column('email', sa.String(), nullable=False),
     sa.Column('id', sa.Uuid(), server_default=sa.text('gen_random_uuid()'), nullable=False),
     sa.Column('created_at', sa.DateTime(timezone=True), server_default=sa.text('now()'), nullable=False),
     sa.Column('updated_at', sa.DateTime(timezone=True), server_default=sa.text('now()'), nullable=False),
