@@ -75,6 +75,7 @@ class UserCredentialsProvider:
         self.session_store = session_store
 
     async def register(self, user: User) -> User:
+        user.hash_password()
         return await self.repository.create(user)
 
     async def authenticate(self, realm: str, email: EmailStr, password: str) -> TokenPair:

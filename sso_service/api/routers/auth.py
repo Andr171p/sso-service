@@ -1,4 +1,3 @@
-import logging
 from uuid import UUID
 
 from dishka.integrations.fastapi import DishkaRoute
@@ -10,8 +9,6 @@ from ...core.domain import TokenPair, UserClaims
 from ...providers import UserCredentialsProvider
 from ...services import UserTokenService
 from ..schemas import TokenIntrospect, TokenRefresh, UserLogin, UserRealmSwitch
-
-logger = logging.getLogger(__name__)
 
 auth_router = APIRouter(prefix="/{realm}/auth", tags=["Auth"], route_class=DishkaRoute)
 

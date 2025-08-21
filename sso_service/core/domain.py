@@ -51,13 +51,12 @@ class User(BaseModel):
 
     model_config = ConfigDict(from_attributes=True)
 
-    def hash_password(self) -> User:
+    def hash_password(self) -> None:
         from ..security import hash_secret
 
         if self.password is None:
             raise ValueError("Password must be provided!")
         self.password = SecretStr(hash_secret(self.password.get_secret_value()))
-        return self
 
     @field_serializer("password")
     def serialize_secret(self, password: SecretStr | None) -> str | None:
@@ -159,11 +158,10 @@ class Client(BaseModel):
         """Полезная нагрузка для JWT"""
         return {"iss": ISSUER, "sub": self.client_id, "scope": " ".join(self.scopes), **kwargs}
 
-    def hash_client_secret(self) -> Client:
+    def hash_client_secret(self) -> None:
         from ..security import hash_secret
 
         self.client_secret = SecretStr(hash_secret(self.client_secret.get_secret_value()))
-        return self
 
     @model_validator(mode="after")
     def validate_client(self) -> Client:

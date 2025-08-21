@@ -7,7 +7,7 @@ from uuid import uuid4
 import jwt
 from passlib.context import CryptContext
 
-from .core.constants import MEMORY_COST, TIME_COST, PARALLELISM, ROUNDS, SALT_SIZE
+from .core.constants import MEMORY_COST, PARALLELISM, ROUNDS, SALT_SIZE, TIME_COST
 from .core.enums import TokenType
 from .core.exceptions import InvalidTokenError
 from .core.utils import current_datetime
@@ -42,6 +42,13 @@ def issue_token(
         payload: dict[str, Any],
         expires_in: timedelta,
 ) -> str:
+    """Подписывает токен.
+
+    :param token_type: Тип токен, например: ACCESS, REFRESH.
+    :param payload: Дополнительные данные, которые нужно закодировать в токен.
+    :param expires_in: Временной промежуток через который истекает токен.
+    :return Подписанный токен.
+    """
     now = current_datetime()
     expires_at = now + expires_in
     payload.update({
@@ -58,6 +65,12 @@ def issue_token(
 
 
 def decode_token(token: str) -> dict[str, Any]:
+    """Декодирует токен.
+
+    :param token: Токен, который нужно декодировать.
+    :return: Словарь с информацией из токена.
+    :exception InvalidTokenError: Токен не был подписан этим сервисом.
+    """
     try:
         return jwt.decode(
             token,

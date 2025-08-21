@@ -1,5 +1,3 @@
-import logging
-
 from dishka.integrations.fastapi import DishkaRoute
 from dishka.integrations.fastapi import FromDishka as Depends
 from fastapi import APIRouter, status
@@ -8,8 +6,6 @@ from ...core.domain import ClientClaims, Token
 from ...providers import ClientCredentialsProvider
 from ...services import ClientTokenService
 from ..schemas import ClientCredentials, TokenIntrospect
-
-logger = logging.getLogger(__name__)
 
 oauth_router = APIRouter(prefix="/{realm}/oauth", tags=["OAuth"], route_class=DishkaRoute)
 
