@@ -23,7 +23,7 @@ from pydantic import (
 
 from ..settings import settings
 from .constants import ISSUER, MAX_NAME_LENGTH, MIN_GRANT_TYPES_COUNT
-from .enums import ClientType, GrantType, Role, TokenType, UserStatus, ProtocolType
+from .enums import ClientType, GrantType, ProtocolType, Role, TokenType, UserStatus
 from .utils import (
     current_datetime,
     current_timestamp,
@@ -52,14 +52,14 @@ class User(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
     def hash_password(self) -> None:
-        from ..security import hash_secret
+        from ..security import hash_secret  # noqa: PLC0415
 
         if self.password is None:
             raise ValueError("Password must be provided!")
         self.password = SecretStr(hash_secret(self.password.get_secret_value()))
 
     @field_serializer("password")
-    def serialize_secret(self, password: SecretStr | None) -> str | None:
+    def serialize_secret(self, password: SecretStr | None) -> str | None:  # noqa: PLR6301
         if password is None:
             return password
         return password.get_secret_value()
@@ -159,7 +159,7 @@ class Client(BaseModel):
         return {"iss": ISSUER, "sub": self.client_id, "scope": " ".join(self.scopes), **kwargs}
 
     def hash_client_secret(self) -> None:
-        from ..security import hash_secret
+        from ..security import hash_secret  # noqa: PLC0415
 
         self.client_secret = SecretStr(hash_secret(self.client_secret.get_secret_value()))
 
@@ -177,7 +177,7 @@ class Client(BaseModel):
         return validate_scopes(scopes)
 
     @field_serializer("client_secret")
-    def serialize_secret(self, client_secret: SecretStr) -> str:
+    def serialize_secret(self, client_secret: SecretStr) -> str:  # noqa: PLR6301
         return client_secret.get_secret_value()
 
 
@@ -225,7 +225,7 @@ class Session(BaseModel):
     last_activity: float = Field(default_factory=current_timestamp)
 
     @field_serializer("session_id", "user_id")
-    def serialize_guid(self, guid: UUID) -> str:
+    def serialize_guid(self, guid: UUID) -> str:  # noqa: PLR6301
         return str(guid)
 
 
@@ -256,7 +256,7 @@ class Claims(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
     @field_serializer("iss")
-    def serialize_iss(self, iss: HttpUrl) -> str:
+    def serialize_iss(self, iss: HttpUrl) -> str:  # noqa: PLR6301
         return str(iss)
 
 

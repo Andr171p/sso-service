@@ -1,6 +1,5 @@
 from typing import Annotated
 
-import logging
 from uuid import UUID
 
 from dishka.integrations.fastapi import DishkaRoute
@@ -9,8 +8,6 @@ from fastapi import APIRouter, HTTPException, Query, status
 
 from sso_service.core.domain import IdentityProvider
 from sso_service.database.repository import IdentityProviderRepository
-
-logger = logging.getLogger(__name__)
 
 providers_router = APIRouter(
     prefix="/providers", tags=["Identity Providers"], route_class=DishkaRoute

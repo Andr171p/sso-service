@@ -208,7 +208,7 @@ class UserRepository(CRUDRepository[UserModel, User]):
             await self.session.rollback()
             raise ReadingError(f"Error while reading: {e}") from e
 
-    async def get_groups(self, realm_slug: str, id: UUID) -> list[Group]:
+    async def get_groups(self, realm_slug: str, id: UUID) -> list[Group]:  # noqa: A002
         try:
             stmt = (
                 select(GroupModel)

@@ -1,4 +1,4 @@
-from typing import Generic, TypeVar
+from typing import TypeVar
 
 from abc import ABC, abstractmethod
 from datetime import timedelta
@@ -12,7 +12,7 @@ from .constants import DEFAULT_TTL
 T = TypeVar("T", bound=BaseModel)
 
 
-class BaseStore(Generic[T], ABC):
+class BaseStore[T: BaseModel](ABC):
     """Базовый класс для хранилища данных.
 
     Определяет интерфейс для системы хранения данных типа "ключ-значение"
@@ -32,7 +32,9 @@ class BaseStore(Generic[T], ABC):
         raise NotImplementedError
 
     @abstractmethod
-    async def add(self, key: str | UUID, schema: T, ttl: timedelta | int | None = DEFAULT_TTL) -> None:
+    async def add(
+            self, key: str | UUID, schema: T, ttl: timedelta | int | None = DEFAULT_TTL
+    ) -> None:
         """Добавляет объект в хранилище
 
         :param key: Уникальный ключ объекта.

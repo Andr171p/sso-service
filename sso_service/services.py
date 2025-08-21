@@ -76,6 +76,14 @@ async def give_roles(
 class ClientTokenService:
     @staticmethod
     async def introspect(token: str, realm: str) -> ClientClaims:
+        """Производит декодирование и валидацию токена.
+
+        :param token: Токен для интроспекции.
+        :param realm: Область для которой был выдан токен.
+        :return: Информация полученная из токена.
+        :exception ValueError: Параметр realm не был передан.
+        :exception UnauthorizedError: Токен не валиден в этой области.
+        """
         if not realm:
             raise ValueError("Realm is required")
         try:
@@ -101,6 +109,16 @@ class UserTokenService:
         self.session_store = session_store
 
     async def introspect(self, token: str, realm: str, session_id: UUID) -> UserClaims:
+        """Производит декодирование и валидацию токена.
+
+        :param token: Токен для интроспекции.
+        :param realm: Область для которой был выдан токен.
+        :param session_id: Идентификатор сессии пользователя.
+        :return: Информация полученная из токена.
+        :exception ValueError: Параметр realm не был передан.
+        :exception UnauthorizedError: Не действительна сессия
+        или токен не валиден в этой области.
+        """
         if not realm:
             raise ValueError("Realm is required")
         if not await self.session_store.exists(session_id) or session_id is None:
@@ -185,6 +203,12 @@ class UserTokenService:
         return True
 
     async def revoke(self, session_id: UUID) -> None:
+        """Выполняет выход из системы пользователя.
+
+        :param session_id: Сессия пользователя.
+        :exception UnauthorizedError: Сессия уже истекла
+        или пользователь уже вышел из системы.
+        """
         is_deleted = await self.session_store.delete(session_id)
         if not is_deleted:
             raise UnauthorizedError("Session expired, maybe already logout")

@@ -1,4 +1,3 @@
-import logging
 from uuid import UUID
 
 from dishka.integrations.fastapi import DishkaRoute
@@ -9,8 +8,6 @@ from sso_service.core.domain import Client
 from sso_service.database.repository import ClientRepository
 
 from ...schemas import ClientCreate, ClientUpdate, CreatedClient
-
-logger = logging.getLogger(__name__)
 
 clients_router = APIRouter(prefix="/clients", tags=["Clients"], route_class=DishkaRoute)
 
@@ -26,11 +23,11 @@ async def create_client(
 ) -> CreatedClient:
     client = Client.model_validate(client_create)
     client_secret = client.client_secret
-    client = client.hash_client_secret()
+    client.hash_client_secret()
     created_client = await repository.create(client)
     return CreatedClient(
         **created_client.model_dump(exclude={"client_secret"}),
-        client_secret=client_secret
+        client_secret=client_secret.get_secret_value()
     )
 
 
