@@ -1,0 +1,16 @@
+sequenceDiagram
+    participant U as User
+    participant S as SSO
+    participant A as App
+
+    U->>A: GET https://app.example.ru
+    A-->>A: Проверка JWT + session
+    A-->>U: Redirect https://sso.example.ru/login
+    U->>S: email + password
+    S-->>S: Проверка регистрации
+    S-->>S: Подписывает access + refresh
+    S-->>S: Генерирует session_id
+    S-->>S: Сохраняет session_id в Redis
+    S->>U: Выдаёт access + refresh, session_id в Cookie
+    U->>A: GET https://app.example.ru
+    A->>U: Контент
