@@ -3,13 +3,13 @@ from dishka.integrations.fastapi import FromDishka as Depends
 from fastapi import APIRouter, status
 
 from ....core.domain import TokenPair, VKCallback
-from ....providers.vk import VKControl
+from ....providers.vk import VKProvider
 
 vk_router = APIRouter(route_class=DishkaRoute, tags=["VK"])
 
 
 @vk_router.get(path="/vk/link", status_code=status.HTTP_200_OK)
-async def vk_generate_url(provider: Depends[VKControl]) -> str:
+async def vk_generate_url(provider: Depends[VKProvider]) -> str:
     return await provider.generate_url()
 
 
@@ -22,9 +22,9 @@ async def vk_generate_url(provider: Depends[VKControl]) -> str:
 async def vk_registration(
     realm: str,
     schema: VKCallback,
-    provider: Depends[VKControl],
+    provider: Depends[VKProvider],
 ) -> TokenPair:
-    return await provider.register(schema=schema, realm=realm)
+    return await provider.register(callback=schema, realm=realm)
 
 
 @vk_router.post(
@@ -36,6 +36,6 @@ async def vk_registration(
 async def vk_authentication(
     realm: str,
     schema: VKCallback,
-    provider: Depends[VKControl],
+    provider: Depends[VKProvider],
 ) -> TokenPair:
-    return await provider.authenticate(schema=schema, realm=realm)
+    return await provider.authenticate(callback=schema, realm=realm)

@@ -1,4 +1,3 @@
-import logging
 from uuid import UUID
 
 from dishka.integrations.fastapi import DishkaRoute
@@ -9,8 +8,6 @@ from sso_service.core.domain import Group
 from sso_service.database.repository import GroupRepository
 
 from ...schemas import GroupUpdate
-
-logger = logging.getLogger(__name__)
 
 groups_router = APIRouter(prefix="/groups", tags=["Groups"], route_class=DishkaRoute)
 

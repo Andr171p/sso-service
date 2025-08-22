@@ -1,89 +1,82 @@
 from typing import Any
 
 import logging
-import time
+from datetime import timedelta
 from uuid import UUID
 
-from pydantic import EmailStr
-
-from .core.base import BaseAuthService, BaseStore
+from .core.base import BaseStore
 from .core.constants import (
-    CLIENT_ACCESS_TOKEN_EXPIRE_IN,
     DEFAULT_ROLES,
-    SESSION_EXPIRE_IN,
     SESSION_REFRESH_IN,
     SESSION_REFRESH_THRESHOLD,
     USER_ACCESS_TOKEN_EXPIRE_IN,
     USER_REFRESH_TOKEN_EXPIRE_IN,
 )
-from .core.domain import ClientClaims, Session, Token, TokenPair, User, UserClaims
-from .core.enums import GrantType, TokenType, UserStatus
+from .core.domain import ClientClaims, Session, TokenPair, UserClaims
+from .core.enums import Role, TokenType, UserStatus
 from .core.exceptions import (
-    InvalidCredentialsError,
     InvalidTokenError,
-    NotEnabledError,
     PermissionDeniedError,
     UnauthorizedError,
-    UnsupportedGrantTypeError,
 )
-from .core.utils import current_timestamp, expires_at, format_scope
-from .database.repository import ClientRepository, GroupRepository, RealmRepository, UserRepository
-from .security import decode_token, issue_token, verify_secret
+from .core.utils import current_timestamp, expires_at
+from .database.repository import RealmRepository, UserRepository
+from .security import decode_token, issue_token
 
 logger = logging.getLogger(__name__)
 
 
-class ClientAuthService(BaseAuthService[Token, ClientClaims]):
-    def __init__(self, repository: ClientRepository) -> None:
-        self.repository = repository
+def generate_token_pair(payload: dict[str, Any], session_id: UUID) -> TokenPair:
+    """Генерирует пару JWT токенов (access и refresh)
+    для аутентифицированного пользователя.
 
-    async def authenticate(
-        self, realm: str, grant_type: str, client_id: str, client_secret: str, scope: str
-    ) -> Token:
-        if grant_type != GrantType.CLIENT_CREDENTIALS:
-            raise UnsupportedGrantTypeError("Unsupported grant type")
-        client = await self.repository.get_by_client_id(realm, client_id)
-        if client is None:
-            raise UnauthorizedError("Client unauthorized in this realm")
-        if not client.enabled:
-            raise NotEnabledError("Client not enabled yet")
-        if not verify_secret(client_secret, client.client_secret.get_secret_value()):
-            raise InvalidCredentialsError("Client credentials invalid")
-        valid_scopes = self._validate_scopes(format_scope(scope), client.scopes)
-        if not valid_scopes:
-            raise PermissionDeniedError("Client permission denied")
-        access_token = issue_token(
-            token_type=TokenType.ACCESS,
-            payload=client.to_payload(realm=realm),
-            expires_in=CLIENT_ACCESS_TOKEN_EXPIRE_IN,
-        )
-        return Token(
-            access_token=access_token, expires_at=expires_at(CLIENT_ACCESS_TOKEN_EXPIRE_IN)
-        )
+    :param payload: Полезная нагрузка для JWT
+    :param session_id: Уникальный идентификатор сессии
+    :return: Объект с access/refresh и прочими метаданными.
+    """
+    access_token = issue_token(
+        token_type=TokenType.ACCESS, payload=payload, expires_in=USER_ACCESS_TOKEN_EXPIRE_IN
+    )
+    refresh_token = issue_token(
+        token_type=TokenType.REFRESH, payload=payload, expires_in=USER_REFRESH_TOKEN_EXPIRE_IN
+    )
+    return TokenPair(
+        access_token=access_token,
+        refresh_token=refresh_token,
+        session_id=session_id,
+        expires_at=expires_at(USER_ACCESS_TOKEN_EXPIRE_IN),
+    )
 
+
+async def give_roles(realm: str, user_id: UUID, user_repository: UserRepository) -> list[Role]:
+    """Возвращает список ролей пользователя в указанном realm.
+
+    Получает все группы пользователя в realm и собирает их роли в единый список.
+    Если пользователь не состоит ни в одной группе, возвращает роли по умолчанию.
+
+    :param realm: Идентификатор realm (например: education, admission, ...)
+    :param user_id: Уникальный идентификатор пользователя.
+    :param user_repository: Репозиторий для работы с пользователями.
+    :return Список ролей пользователя.
+    """
+    groups = await user_repository.get_groups(realm, user_id)
+    if not groups:
+        return DEFAULT_ROLES
+    roles: set[Role] = {role for group in groups for role in group.roles}
+    return list(roles)
+
+
+class ClientTokenService:
     @staticmethod
-    def _validate_scopes(
-        requested_scopes: list[str], client_scopes: list[str], strict_mode: bool = False
-    ) -> list[str] | None:
-        """Сверяет запрошенный права с разрешёнными.
+    async def introspect(token: str, realm: str) -> ClientClaims:
+        """Производит декодирование и валидацию токена.
 
-        :param requested_scopes: Список запрашиваемых прав, например: ['api:read', 'api:write']
-        :param client_scopes: Список разрешённых прав.
-        :param strict_mode: Если True - все запрошенные права должны быть разрешены.
-        Если False - то только пересечение.
-        :return: Список валидных прав или None если проверка не пройдена.
+        :param token: Токен для интроспекции.
+        :param realm: Область для которой был выдан токен.
+        :return: Информация полученная из токена.
+        :exception ValueError: Параметр realm не был передан.
+        :exception UnauthorizedError: Токен не валиден в этой области.
         """
-        valid_scopes: list[str] = [
-            requested_scope
-            for requested_scope in requested_scopes
-            if requested_scope in client_scopes
-        ]
-        if strict_mode and set(requested_scopes) - set(valid_scopes):
-            return None
-        return valid_scopes or None
-
-    async def introspect(self, token: str, **kwargs) -> ClientClaims:  # noqa: PLR6301
-        realm = kwargs.get("realm")
         if not realm:
             raise ValueError("Realm is required")
         try:
@@ -97,82 +90,31 @@ class ClientAuthService(BaseAuthService[Token, ClientClaims]):
         return ClientClaims(active=True, **payload)
 
 
-class UserAuthService(BaseAuthService[TokenPair, UserClaims]):
+class UserTokenService:
     def __init__(
         self,
         user_repository: UserRepository,
-        group_repository: GroupRepository,
         realm_repository: RealmRepository,
         session_store: BaseStore[Session],
     ) -> None:
         self.user_repository = user_repository
-        self.group_repository = group_repository
         self.realm_repository = realm_repository
         self.session_store = session_store
 
-    async def register(self, user: User) -> User:
-        return await self.user_repository.create(user)
+    async def introspect(self, token: str, realm: str, session_id: UUID) -> UserClaims:
+        """Производит декодирование и валидацию токена.
 
-    async def authenticate(self, realm: str, email: EmailStr, password: str) -> TokenPair:
-        user = await self.user_repository.get_by_email(email)
-        if user is None:
-            raise InvalidCredentialsError("Invalid email")
-        if user.status == UserStatus.BANNED:
-            raise NotEnabledError("User is banned")
-        if not verify_secret(password, user.password.get_secret_value()):
-            raise InvalidCredentialsError("Invalid password")
-        roles = await self._give_roles(realm, user.id)
-        payload = user.to_payload(realm=realm, roles=roles)
-        session = Session(user_id=user.id, expires_at=expires_at(SESSION_EXPIRE_IN))
-        key = self.session_store.build_key(session.session_id)
-        await self.session_store.add(key, session, ttl=int(session.expires_at - time.time()))
-        return self._generate_token_pair(payload, session.session_id)
-
-    async def _give_roles(self, realm: str, user_id: UUID) -> list[str]:
-        """Возвращает список ролей пользователя в указанном realm.
-
-        Получает все группы пользователя в realm и собирает их роли в единый список.
-        Если пользователь не состоит ни в одной группе, возвращает роли по умолчанию.
-
-        :param realm: Идентификатор realm (например: education, admission, ...)
-        :param user_id: Уникальный идентификатор пользователя.
-        :return Список ролей пользователя.
+        :param token: Токен для интроспекции.
+        :param realm: Область для которой был выдан токен.
+        :param session_id: Идентификатор сессии пользователя.
+        :return: Информация полученная из токена.
+        :exception ValueError: Параметр realm не был передан.
+        :exception UnauthorizedError: Не действительна сессия
+        или токен не валиден в этой области.
         """
-        groups = await self.group_repository.get_by_user(realm, user_id)
-        if not groups:
-            return DEFAULT_ROLES
-        roles: set[str] = {role for group in groups for role in group.roles}
-        return list(roles)
-
-    @staticmethod
-    def _generate_token_pair(payload: dict[str, Any], session_id: UUID) -> TokenPair:
-        """Генерирует пару JWT токенов (access и refresh)
-        для аутентифицированного пользователя.
-
-        :param payload: Полезная нагрузка для JWT
-        :param session_id: Уникальный идентификатор сессии
-        :return: Объект с access/refresh и прочими метаданными.
-        """
-        access_token = issue_token(
-            token_type=TokenType.ACCESS, payload=payload, expires_in=USER_ACCESS_TOKEN_EXPIRE_IN
-        )
-        refresh_token = issue_token(
-            token_type=TokenType.REFRESH, payload=payload, expires_in=USER_REFRESH_TOKEN_EXPIRE_IN
-        )
-        return TokenPair(
-            access_token=access_token,
-            refresh_token=refresh_token,
-            session_id=session_id,
-            expires_at=expires_at(USER_ACCESS_TOKEN_EXPIRE_IN),
-        )
-
-    async def introspect(self, token: str, **kwargs) -> UserClaims:
-        realm: str = kwargs.get("realm")
-        session_id: UUID = kwargs.get("session_id")
         if not realm:
             raise ValueError("Realm is required")
-        key = self.session_store.build_key(session_id)
-        if not await self.session_store.exists(key) or session_id is None:
+        if not await self.session_store.exists(session_id) or session_id is None:
             raise UnauthorizedError("Session not found")
         try:
             payload = decode_token(token)
@@ -193,22 +135,23 @@ class UserAuthService(BaseAuthService[TokenPair, UserClaims]):
         :param session_id: Текущая сессия пользователя.
         :return: Новая пара токенов access и refresh.
         """
-        key = self.session_store.build_key(session_id)
-        session = await self.session_store.get(key)
+        session = await self.session_store.get(session_id)
         if session is None:
             raise UnauthorizedError("Session not found or expired")
         claims = await self.introspect(token, realm=realm, session_id=session_id)
         if not claims.active:
             raise UnauthorizedError(claims.cause)
-        roles = await self._give_roles(realm, UUID(claims.sub))
+        roles = await give_roles(realm, UUID(claims.sub), self.user_repository)
         claims.roles = roles
         session_delay = session.expires_at - current_timestamp()
         if session_delay < SESSION_REFRESH_THRESHOLD.total_seconds():
-            await self.session_store.refresh_ttl(key, ttl=session_delay + SESSION_REFRESH_IN)
-        return self._generate_token_pair(claims.model_dump(exclude_none=True), session_id)
+            await self.session_store.refresh_ttl(
+                session_id, ttl=timedelta(seconds=session_delay) + SESSION_REFRESH_IN
+            )
+        return generate_token_pair(claims.model_dump(exclude_none=True), session_id)
 
     async def switch_realm(
-        self, current_realm: str, target_realm: str, refresh_token: str, session_id: UUID | str
+        self, current_realm: str, target_realm: str, refresh_token: str, session_id: UUID
     ) -> TokenPair:
         """Осуществляет переход пользователя из одного realm в другой
         без повторной аутентификации.
@@ -230,12 +173,14 @@ class UserAuthService(BaseAuthService[TokenPair, UserClaims]):
         if not await self._can_switch_realm(target_realm):
             raise PermissionDeniedError("Realm switching not allowed")
         user_id = UUID(claims.sub)
-        roles = await self._give_roles(target_realm, user_id)
+        roles = await give_roles(target_realm, user_id, self.user_repository)
         user = await self.user_repository.read(user_id)
+        if user is None:
+            raise UnauthorizedError("User not found")
         if user.status == UserStatus.BANNED:
             raise PermissionDeniedError("User is banned")
         payload = user.to_payload(realm=target_realm, roles=roles)
-        return self._generate_token_pair(payload, session_id)
+        return generate_token_pair(payload, session_id)
 
     async def _can_switch_realm(self, target_realm: str) -> bool:
         """Проверяет возможность перехода в realm.
@@ -251,3 +196,14 @@ class UserAuthService(BaseAuthService[TokenPair, UserClaims]):
             logger.warning("Realm is not enabled for switching!")
             return False
         return True
+
+    async def revoke(self, session_id: UUID) -> None:
+        """Выполняет выход из системы пользователя.
+
+        :param session_id: Сессия пользователя.
+        :exception UnauthorizedError: Сессия уже истекла
+        или пользователь уже вышел из системы.
+        """
+        is_deleted = await self.session_store.delete(session_id)
+        if not is_deleted:
+            raise UnauthorizedError("Session expired, maybe already logout")

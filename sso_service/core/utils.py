@@ -2,9 +2,8 @@ from typing import Any
 
 import secrets
 import string
-from datetime import datetime
+from datetime import datetime, timedelta
 
-from asyncpg.pgproto.pgproto import timedelta
 from pydantic import SecretStr
 
 from .constants import BYTES_COUNT, GOOD_STATUS_CODE
@@ -36,13 +35,13 @@ def format_scope(scope: str) -> list[str]:
 
 
 def current_datetime() -> datetime:
-    from ..settings import moscow_tz
+    from ..settings import moscow_tz  # noqa: PLC0415
 
     return datetime.now(tz=moscow_tz)
 
 
 def current_timestamp() -> float:
-    from ..settings import moscow_tz
+    from ..settings import moscow_tz  # noqa: PLC0415
 
     return datetime.now(tz=moscow_tz).timestamp()
 

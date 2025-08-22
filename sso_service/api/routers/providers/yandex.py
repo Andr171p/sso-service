@@ -3,13 +3,13 @@ from dishka.integrations.fastapi import FromDishka as Depends
 from fastapi import APIRouter, status
 
 from ....core.domain import TokenPair, YandexCallback
-from ....providers.yandex import YandexControl
+from ....providers.yandex import YandexProvider
 
 yandex_router = APIRouter(route_class=DishkaRoute, tags=["Yandex"])
 
 
 @yandex_router.get(path="/yandex/link", status_code=status.HTTP_200_OK)
-async def yandex_generate_url(provider: Depends[YandexControl]) -> str:
+async def yandex_generate_url(provider: Depends[YandexProvider]) -> str:
     return await provider.generate_url()
 
 
@@ -22,9 +22,9 @@ async def yandex_generate_url(provider: Depends[YandexControl]) -> str:
 async def yandex_registration(
     realm: str,
     schema: YandexCallback,
-    provider: Depends[YandexControl],
+    provider: Depends[YandexProvider],
 ) -> TokenPair:
-    return await provider.register(schema=schema, realm=realm)
+    return await provider.register(callback=schema, realm=realm)
 
 
 @yandex_router.post(
@@ -36,6 +36,6 @@ async def yandex_registration(
 async def yandex_authentication(
     realm: str,
     schema: YandexCallback,
-    provider: Depends[YandexControl],
+    provider: Depends[YandexProvider],
 ) -> TokenPair:
-    return await provider.authenticate(schema=schema, realm=realm)
+    return await provider.authenticate(callback=schema, realm=realm)

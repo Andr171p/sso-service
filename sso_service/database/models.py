@@ -16,8 +16,7 @@ from .base import (
 class UserModel(Base):
     __tablename__ = "users"
 
-    email: Mapped[StrNullable]
-    username: Mapped[StrNullable]
+    email: Mapped[StrUnique]
     password: Mapped[StrNullable]
     status: Mapped[str]
 
@@ -101,6 +100,11 @@ class IdentityProviderModel(Base):
     name: Mapped[StrUnique]
     protocol: Mapped[str]
     scopes: Mapped[StringArray]
+    enabled: Mapped[bool]
+
+    user_identities: Mapped[list["UserIdentityModel"]] = relationship(
+        back_populates="identity_provider"
+    )
 
 
 class UserIdentityModel(Base):
@@ -111,9 +115,12 @@ class UserIdentityModel(Base):
         ForeignKey("identity_providers.id"), unique=False
     )
     provider_user_id: Mapped[StrUnique]
-    email: Mapped[StrNullable]
+    email: Mapped[str]
 
     user: Mapped["UserModel"] = relationship(back_populates="user_identities")
+    identity_provider: Mapped["IdentityProviderModel"] = relationship(
+        back_populates="user_identities"
+    )
 
     __table_args__ = (
         UniqueConstraint("user_id", "provider_user_id", name="identity_uq"),

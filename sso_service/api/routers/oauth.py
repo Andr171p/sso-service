@@ -1,14 +1,11 @@
-import logging
-
 from dishka.integrations.fastapi import DishkaRoute
 from dishka.integrations.fastapi import FromDishka as Depends
 from fastapi import APIRouter, status
 
 from ...core.domain import ClientClaims, Token
-from ...services import ClientAuthService
+from ...providers import ClientCredentialsProvider
+from ...services import ClientTokenService
 from ..schemas import ClientCredentials, TokenIntrospect
-
-logger = logging.getLogger(__name__)
 
 oauth_router = APIRouter(prefix="/{realm}/oauth", tags=["OAuth"], route_class=DishkaRoute)
 
@@ -21,11 +18,9 @@ oauth_router = APIRouter(prefix="/{realm}/oauth", tags=["OAuth"], route_class=Di
     summary="Выдаёт токен клиенту",
 )
 async def issue_token(
-        realm: str,
-        credentials: ClientCredentials,
-        service: Depends[ClientAuthService]
+    realm: str, credentials: ClientCredentials, provider: Depends[ClientCredentialsProvider]
 ) -> Token:
-    return await service.authenticate(
+    return await provider.authenticate(
         realm=realm,
         grant_type=credentials.grant_type,
         client_id=credentials.client_id,
@@ -39,11 +34,9 @@ async def issue_token(
     status_code=status.HTTP_200_OK,
     response_model=ClientClaims,
     response_model_exclude_none=True,
-    summary="Декодирует и валидирует токен"
+    summary="Декодирует и валидирует токен",
 )
 async def introspect_token(
-        realm: str,
-        token: TokenIntrospect,
-        service: Depends[ClientAuthService]
+    realm: str, token: TokenIntrospect, service: Depends[ClientTokenService]
 ) -> ClientClaims:
     return await service.introspect(token.token, realm=realm)

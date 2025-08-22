@@ -9,6 +9,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import joinedload
 
 from ..core.domain import Client, Group, IdentityProvider, Realm, User, UserIdentity
+from ..core.enums import UserStatus
 from ..core.exceptions import (
     AlreadyExistsError,
     CreationError,
@@ -27,18 +28,18 @@ from .models import (
     UserModel,
 )
 
-Model = TypeVar("Model", bound=Base)
-Schema = TypeVar("Schema", bound=BaseModel)
+ModelT = TypeVar("ModelT", bound=Base)
+SchemaT = TypeVar("SchemaT", bound=BaseModel)
 
 
-class CRUDRepository[Model: Base, Schema: BaseModel]:
-    model: type[Model]
-    schema: type[Schema]
+class CRUDRepository[ModelT: Base, SchemaT: BaseModel]:
+    model: type[ModelT]
+    schema: type[SchemaT]
 
     def __init__(self, session: AsyncSession) -> None:
         self.session = session
 
-    async def create(self, schema: Schema) -> Schema:
+    async def create(self, schema: SchemaT) -> SchemaT:
         try:
             stmt = insert(self.model).values(**schema.model_dump()).returning(self.model)
             result = await self.session.execute(stmt)
@@ -52,7 +53,7 @@ class CRUDRepository[Model: Base, Schema: BaseModel]:
             await self.session.rollback()
             raise CreationError(f"Error while creation: {e}") from e
 
-    async def read(self, id: UUID) -> Schema | None:  # noqa: A002
+    async def read(self, id: UUID) -> SchemaT | None:  # noqa: A002
         try:
             stmt = select(self.model).where(self.model.id == id)
             result = await self.session.execute(stmt)
@@ -62,7 +63,7 @@ class CRUDRepository[Model: Base, Schema: BaseModel]:
             await self.session.rollback()
             raise ReadingError(f"Error while reading: {e}") from e
 
-    async def read_all(self, limit: int, page: int) -> list[Schema]:
+    async def read_all(self, limit: int, page: int) -> list[SchemaT]:
         try:
             offset = (page - 1) * limit
             stmt = select(self.model).offset(offset).limit(limit)
@@ -73,7 +74,7 @@ class CRUDRepository[Model: Base, Schema: BaseModel]:
             await self.session.rollback()
             raise ReadingError(f"Error while reading: {e}") from e
 
-    async def update(self, id: UUID, **kwargs) -> Schema | None:  # noqa: A002
+    async def update(self, id: UUID, **kwargs) -> SchemaT | None:  # noqa: A002
         try:
             stmt = (
                 update(self.model)
@@ -149,9 +150,35 @@ class UserRepository(CRUDRepository[UserModel, User]):
     model = UserModel
     schema = User
 
+    async def create_with_identity(
+        self, user_identity: UserIdentity, *, status: UserStatus = UserStatus.ACTIVE
+    ) -> User:
+        """Создает нового пользователя и привязывает identity провайдера в атомарной транзакции.
+
+        Метод гарантирует, что-либо создаются обе сущности (User и UserIdentity),
+        либо в случае ошибки откатываются обе операции.
+
+        :param user_identity:  Объект UserIdentity содержащий данные аутентификации провайдера.
+        :param status: Статус создаваемого пользователя. По умолчанию ACTIVE,
+        так как пользователь уже подтвердил свой email у провайдера.
+        :return: Созданный объект User с заполненным ID.
+        """
+        try:
+            model = self.model(
+                email=user_identity.email,
+                status=status,
+                user_identities=[UserIdentityModel(**user_identity.model_dump())],
+            )
+            self.session.add(model)
+
+            await self.session.commit()  # Явный коммит если нет внешней транзакции
+            return self.schema.model_validate(model)
+        except SQLAlchemyError as e:
+            raise CreationError(f"Error while creating user with identity: {e}") from e
+
     async def get_by_email(self, email: str) -> User | None:
         try:
-            stmt = select(UserModel).where(self.model.email == email)
+            stmt = select(self.model).where(self.model.email == email)
             result = await self.session.execute(stmt)
             model = result.scalar_one_or_none()
             return self.schema.model_validate(model) if model else None
@@ -180,42 +207,44 @@ class UserRepository(CRUDRepository[UserModel, User]):
             await self.session.rollback()
             raise ReadingError(f"Error while reading: {e}") from e
 
+    async def get_groups(self, realm_slug: str, id: UUID) -> list[Group]:  # noqa: A002
+        """Возвращает группы пользователя в которых он состоит
+
+        :param realm_slug: Уникальное имя realm.
+        :param id: Идентификатор пользователя.
+        :return: Список групп пользователя
+        """
+        try:
+            stmt = (
+                select(GroupModel)
+                .join(RealmModel, GroupModel.realm_id == RealmModel.id)
+                .join(UserGroupModel, GroupModel.id == UserGroupModel.group_id)
+                .where((UserGroupModel.user_id == id) & (RealmModel.slug == realm_slug))
+                .options(joinedload(GroupModel.realm), joinedload(GroupModel.user_groups))
+            )
+            result = await self.session.execute(stmt)
+            models = result.scalars().all()
+            return [Group.model_validate(model) for model in models]
+        except SQLAlchemyError as e:
+            await self.session.rollback()
+            raise ReadingError(f"Error while reading user groups: {e}") from e
+
 
 class GroupRepository(CRUDRepository[GroupModel, Group]):
     model = GroupModel
     schema = Group
-
-    async def get_by_user(self, realm_slug: str, user_id: UUID) -> list[Group]:
-        try:
-            stmt = (
-                select(self.model)
-                .join(RealmModel, GroupModel.realm_id == RealmModel.id)
-                .join(UserGroupModel, GroupModel.id == UserGroupModel.group_id)
-                .where((UserGroupModel.user_id == user_id) & (RealmModel.slug == realm_slug))
-                .options(joinedload(GroupModel.realm))
-            )
-            results = await self.session.execute(stmt)
-            models = results.scalars().all()
-            return [self.schema.model_validate(model) for model in models]
-        except SQLAlchemyError as e:
-            await self.session.rollback()
-            raise ReadingError(f"Error while reading: {e}") from e
 
 
 class IdentityProviderRepository(CRUDRepository[IdentityProviderModel, IdentityProvider]):
     model = IdentityProviderModel
     schema = IdentityProvider
 
-    async def get_by_name(self, name: str) -> UUID | None:
+    async def get_by_name(self, name: str) -> IdentityProvider | None:
         try:
-            stmt = select(self.model.id).where(self.model.name == name)
+            stmt = select(self.model).where(self.model.name == name)
             result = await self.session.execute(stmt)
-            return result.scalar_one_or_none()
+            model = result.scalar_one_or_none()
+            return self.schema.model_validate(model) if model else None
         except SQLAlchemyError as e:
             await self.session.rollback()
             raise ReadingError(f"Error while reading: {e}") from e
-
-
-class UserIdentityRepository(CRUDRepository[UserIdentityModel, UserIdentity]):
-    model = UserIdentityModel
-    schema = UserIdentity

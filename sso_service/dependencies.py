@@ -4,20 +4,23 @@ from dishka import Provider, Scope, from_context, make_async_container, provide
 from redis.asyncio import Redis as AsyncRedis
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
-from sso_service.rest import VKApi, YandexApi
-
+from .core.base import BaseStore
+from .core.domain import Codes, Session
 from .database.base import create_sessionmaker
 from .database.repository import (
     ClientRepository,
     GroupRepository,
     IdentityProviderRepository,
     RealmRepository,
-    UserIdentityRepository,
     UserRepository,
 )
-from .providers.vk import VKControl
-from .providers.yandex import YandexControl
-from .services import ClientAuthService, UserAuthService
+from .providers import (
+    ClientCredentialsProvider,
+    UserCredentialsProvider,
+    VKProvider,
+    YandexProvider,
+)
+from .services import ClientTokenService, UserTokenService
 from .settings import Settings, settings
 from .storage import RedisCodesStore, RedisSessionStore
 
@@ -56,98 +59,74 @@ class AppProvider(Provider):
         return UserRepository(session)
 
     @provide(scope=Scope.REQUEST)
-    def get_identity_repository(self, session: AsyncSession) -> IdentityProviderRepository:  # noqa: PLR6301
+    def get_provider_repository(self, session: AsyncSession) -> IdentityProviderRepository:  # noqa: PLR6301
         return IdentityProviderRepository(session)
-
-    @provide(scope=Scope.REQUEST)
-    def get_user_identity_repository(self, session: AsyncSession) -> UserIdentityRepository:  # noqa: PLR6301
-        return UserIdentityRepository(session)
 
     @provide(scope=Scope.REQUEST)
     def get_group_repository(self, session: AsyncSession) -> GroupRepository:  # noqa: PLR6301
         return GroupRepository(session)
 
     @provide(scope=Scope.APP)
-    def get_session_store(self, redis: AsyncRedis) -> RedisSessionStore:  # noqa: PLR6301
-        return RedisSessionStore(redis)
+    def get_session_store(self, redis: AsyncRedis) -> BaseStore[Session]:  # noqa: PLR6301
+        return RedisSessionStore(redis, prefix="session")
 
     @provide(scope=Scope.APP)
-    def get_codes_store(self, redis: AsyncRedis) -> RedisCodesStore:  # noqa: PLR6301
-        return RedisCodesStore(redis)
+    def get_codes_store(self, redis: AsyncRedis) -> BaseStore[Codes]:  # noqa: PLR6301
+        return RedisCodesStore(redis, prefix="codes")
 
     @provide(scope=Scope.REQUEST)
-    def get_client_auth_service(  # noqa: PLR6301
-        self, repository: ClientRepository
-    ) -> ClientAuthService:
-        return ClientAuthService(repository)
+    def get_client_token_service(self) -> ClientTokenService:  # noqa: PLR6301
+        return ClientTokenService()
 
     @provide(scope=Scope.REQUEST)
-    def get_vk_api(  # noqa: PLR6301
-        self,
-    ) -> VKApi:
-        return VKApi()
-
-    @provide(scope=Scope.REQUEST)
-    def get_yandex_api(  # noqa: PLR6301
-        self,
-    ) -> YandexApi:
-        return YandexApi()
-
-    @provide(scope=Scope.REQUEST)
-    def get_user_auth_service(  # noqa: PLR6301
+    def get_user_token_service(  # noqa: PLR6301
         self,
         user_repository: UserRepository,
-        group_repository: GroupRepository,
         realm_repository: RealmRepository,
-        session_store: RedisSessionStore,
-    ) -> UserAuthService:
-        return UserAuthService(
+        session_store: BaseStore[Session],
+    ) -> UserTokenService:
+        return UserTokenService(user_repository, realm_repository, session_store)
+
+    @provide(scope=Scope.REQUEST)
+    def get_client_credentials_provider(  # noqa: PLR6301
+        self, repository: ClientRepository
+    ) -> ClientCredentialsProvider:
+        return ClientCredentialsProvider(repository)
+
+    @provide(scope=Scope.REQUEST)
+    def get_user_credentials_provider(  # noqa: PLR6301
+        self, repository: UserRepository, session_store: BaseStore[Session]
+    ) -> UserCredentialsProvider:
+        return UserCredentialsProvider(repository, session_store)
+
+    @provide(scope=Scope.REQUEST)
+    def get_vk_provider(  # noqa: PLR6301
+        self,
+        provider_repository: IdentityProviderRepository,
+        user_repository: UserRepository,
+        codes_store: BaseStore[Codes],
+        session_store: BaseStore[Session],
+    ) -> VKProvider:
+        return VKProvider(
+            provider_repository=provider_repository,
             user_repository=user_repository,
-            group_repository=group_repository,
-            realm_repository=realm_repository,
             session_store=session_store,
+            codes_store=codes_store,
         )
 
     @provide(scope=Scope.REQUEST)
-    def get_vk_control(  # noqa: PLR6301
+    def get_yandex_provider(  # noqa: PLR6301
         self,
-        user_auth_service: UserAuthService,
+        provider_repository: IdentityProviderRepository,
         user_repository: UserRepository,
-        user_identity_repository: UserIdentityRepository,
-        identity_repository: IdentityProviderRepository,
-        session_store: RedisSessionStore,
-        codes_store: RedisCodesStore,
-        api: VKApi,
-    ) -> VKControl:
-        return VKControl(
-            user_auth_service=user_auth_service,
+        codes_store: BaseStore[Codes],
+        session_store: BaseStore[Session],
+    ) -> YandexProvider:
+        return YandexProvider(
+            provider_repository=provider_repository,
             user_repository=user_repository,
-            user_identity_repository=user_identity_repository,
-            identity_repository=identity_repository,
             session_store=session_store,
             codes_store=codes_store,
-            api=api,
-        )
-
-    @provide(scope=Scope.REQUEST)
-    def get_yandex_control(  # noqa: PLR6301
-        self,
-        user_auth_service: UserAuthService,
-        user_repository: UserRepository,
-        user_identity_repository: UserIdentityRepository,
-        identity_repository: IdentityProviderRepository,
-        session_store: RedisSessionStore,
-        codes_store: RedisCodesStore,
-        api: YandexApi,
-    ) -> YandexControl:
-        return YandexControl(
-            user_auth_service=user_auth_service,
-            user_repository=user_repository,
-            user_identity_repository=user_identity_repository,
-            identity_repository=identity_repository,
-            session_store=session_store,
-            codes_store=codes_store,
-            api=api,
         )
 
 

@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import Any, Literal
+from typing import Any
 
 from abc import ABC, abstractmethod
 from datetime import datetime
@@ -22,8 +22,8 @@ from pydantic import (
 )
 
 from ..settings import settings
-from .constants import ISSUER, MAX_NAME_LENGTH, MIN_GRANT_TYPES_COUNT
-from .enums import ClientType, GrantType, Role, TokenType, UserStatus
+from .constants import ISSUER, MAX_NAME_LENGTH, MIN_GRANT_TYPES_COUNT, PATH_VK, PATH_YANDEX
+from .enums import ClientType, GrantType, ProtocolType, Role, TokenType, UserStatus
 from .utils import (
     current_datetime,
     current_timestamp,
@@ -39,30 +39,28 @@ class User(BaseModel):
     Attributes:
         id: Уникальный идентификатор пользователя во всей системе.
         email: Адрес почты пользователя для подтверждения аккаунта (опционален).
-        username: Уникальное имя пользователя, логин (опционален).
         status: Статус пользователя в системе.
         (при флаге False - пользователь больше не может входить в систему).
         created_at: Дата и время добавления пользователя.
     """
+
     id: UUID = Field(default_factory=uuid4)
-    email: EmailStr | None = None
-    username: str | None = None
+    email: EmailStr
     password: SecretStr | None = None
     status: UserStatus = Field(default=UserStatus.REGISTERED)
     created_at: datetime = Field(default_factory=current_datetime)
 
     model_config = ConfigDict(from_attributes=True)
 
-    def hash_password(self) -> User:
-        from ..security import hash_secret
+    def hash_password(self) -> None:
+        from ..security import hash_secret  # noqa: PLC0415
 
         if self.password is None:
-            raise ValueError("")
+            raise ValueError("Password must be provided!")
         self.password = SecretStr(hash_secret(self.password.get_secret_value()))
-        return self
 
     @field_serializer("password")
-    def serialize_secret(self, password: SecretStr | None) -> str | None:
+    def serialize_secret(self, password: SecretStr | None) -> str | None:  # noqa: PLR6301
         if password is None:
             return password
         return password.get_secret_value()
@@ -83,6 +81,7 @@ class User(BaseModel):
 
 class Group(BaseModel):
     """Ролевые группы для пользователей"""
+
     id: UUID = Field(default_factory=uuid4)
     realm_id: UUID
     name: str
@@ -95,6 +94,7 @@ class Group(BaseModel):
 
 class UserGroup(BaseModel):
     """Привязка пользователя к группе"""
+
     user_id: UUID
     group_id: UUID
 
@@ -112,6 +112,7 @@ class Realm(BaseModel):
         (при значении False отключаются все сервисы внутри неё).
         created_at: Дата и время создания области.
     """
+
     id: UUID = Field(default_factory=uuid4)
     name: str = Field(..., max_length=MAX_NAME_LENGTH)
     slug: str
@@ -139,6 +140,7 @@ class Client(BaseModel):
         scopes: Права выдаваемые клиенту для ограничения доступа к другим клиентам.
         created_at: Дата создания клиента.
     """
+
     id: UUID = Field(default_factory=uuid4)
     realm_id: UUID
     client_id: str = Field(default_factory=generate_public_id)
@@ -161,11 +163,10 @@ class Client(BaseModel):
         """Полезная нагрузка для JWT"""
         return {"iss": ISSUER, "sub": self.client_id, "scope": " ".join(self.scopes), **kwargs}
 
-    def hash_client_secret(self) -> Client:
-        from ..security import hash_secret
+    def hash_client_secret(self) -> None:
+        from ..security import hash_secret  # noqa: PLC0415
 
         self.client_secret = SecretStr(hash_secret(self.client_secret.get_secret_value()))
-        return self
 
     @model_validator(mode="after")
     def validate_client(self) -> Client:
@@ -181,36 +182,47 @@ class Client(BaseModel):
         return validate_scopes(scopes)
 
     @field_serializer("client_secret")
-    def serialize_secret(self, client_secret: SecretStr) -> str:
+    def serialize_secret(self, client_secret: SecretStr) -> str:  # noqa: PLR6301
         return client_secret.get_secret_value()
 
 
 class IdentityProvider(BaseModel):
-    """Провайдер аутентификации и регистрации"""
+    """Провайдер аутентификации и регистрации.
+    Например: Google, VK, Yandex ...
+    """
 
     id: UUID = Field(default_factory=uuid4)
     name: str
-    type: str
-    client_id: str
-    client_secret: SecretStr
+    protocol: ProtocolType
     scopes: list[str] = Field(default_factory=list)
+    enabled: bool = True
 
     model_config = ConfigDict(from_attributes=True)
 
 
 class UserIdentity(BaseModel):
-    """Привязка аккаунта пользователя"""
+    """Привязка аккаунта пользователя к провайдеру.
+
+    Attributes:
+        id: Уникальный идентификатор.
+        user_id: Пользователь к которому привязан аккаунт.
+        provider_id: Провайдер, которому принадлежит аккаунт пользователя.
+        provider_user_id: Уникальный идентификатор пользователя у провайдера.
+        email: Почта, которая привязана к провайдеру.
+    """
+
     id: UUID = Field(default_factory=uuid4)
     user_id: UUID | None = None
     provider_id: UUID | None = None
     provider_user_id: str
-    email: str
+    email: EmailStr
 
     model_config = ConfigDict(from_attributes=True)
 
 
 class Session(BaseModel):
     """Пользовательская сессия в SSO"""
+
     session_id: UUID = Field(default_factory=uuid4)
     user_id: UUID
     expires_at: int | float
@@ -219,7 +231,7 @@ class Session(BaseModel):
     last_activity: float = Field(default_factory=current_timestamp)
 
     @field_serializer("session_id", "user_id")
-    def serialize_guid(self, guid: UUID) -> str:
+    def serialize_guid(self, guid: UUID) -> str:  # noqa: PLR6301
         return str(guid)
 
 
@@ -237,6 +249,7 @@ class TokenPair(BaseModel):
 
 class Claims(BaseModel):
     """Базовая модель для интроспекции JWT"""
+
     active: bool = False
     cause: str | None = None
     token_type: TokenType | None = None
@@ -250,7 +263,7 @@ class Claims(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
     @field_serializer("iss")
-    def serialize_iss(self, iss: HttpUrl) -> str:
+    def serialize_iss(self, iss: HttpUrl) -> str:  # noqa: PLR6301
         return str(iss)
 
 
@@ -300,7 +313,7 @@ class VKRedirect(BaseModel):
             "code_challenge": code_challenge,
             "code_challenge_method": "S256",
         })
-        return f"{settings.vk_settings.vk_auth_url}?{query}"
+        return f"{PATH_VK}authorize?{query}"
 
 
 class YandexRedirect(BaseModel):
@@ -315,7 +328,7 @@ class YandexRedirect(BaseModel):
             "code_challenge": code_challenge,
             "code_challenge_method": "S256",
         })
-        return f"{settings.yandex_settings.yandex_auth_url}?{query}"
+        return f"{PATH_YANDEX}authorize?{query}"
 
 
 class BaseCallback(BaseModel, ABC):
@@ -350,14 +363,3 @@ class VKCallback(BaseCallback):
             "redirect_uri": settings.vk_settings.vk_redirect_uri,
             "state": self.state,
         }
-
-
-class VKGetData(BaseModel):
-    access_token: str
-    user_id: str = Field(exclude=True)
-    client_id: str = settings.vk_settings.vk_app_id
-
-
-class YandexGetData(BaseModel):
-    oauth_token: str
-    format: Literal["json"] = "json"

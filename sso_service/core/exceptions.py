@@ -61,6 +61,10 @@ class InvalidTokenError(_AuthenticationError):
     """Инвалидный токен"""
 
 
+class NotRegisteredResourceError(_AuthenticationError):
+    """Ресурс не зарегистрирован или не был создан"""
+
+
 class BaseHTTPError(Exception):
     def __init__(self, message: str, code: int) -> None:
         self.code = code if code > MIN_STATUS_CODE else 500

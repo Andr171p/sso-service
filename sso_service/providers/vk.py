@@ -1,56 +1,85 @@
 import time
 
-from ..core.base import BaseOAuthProvider, BaseStore
-from ..core.constants import SESSION_EXPIRE_IN
-from ..core.domain import Codes, Session, TokenPair, VKCallback, VKRedirect
+from aiohttp import ClientSession
+
+from ..core.base import BaseStore
+from ..core.constants import PATH_VK, SESSION_EXPIRE_IN
+from ..core.domain import BaseCallback, Codes, Session, TokenPair, UserIdentity, VKRedirect
 from ..core.exceptions import BadRequestHTTPError
-from ..core.utils import expires_at
-from ..database.repository import (
-    IdentityProviderRepository,
-    UserIdentityRepository,
-    UserRepository,
-)
-from ..rest import VKApi
-from ..services import UserAuthService
+from ..core.utils import expires_at, valid_answer
+from ..database.repository import IdentityProviderRepository, UserRepository
+from ..services import generate_token_pair, give_roles
+from ..settings import settings
+from .base import BaseOAuthProvider, BaseProvider
 
 
-class VKControl(BaseOAuthProvider):
-    name = "VK"
+class VKProvider(BaseOAuthProvider, BaseProvider):
+    @property
+    def name(self) -> str:
+        return "VK"
 
     def __init__(
         self,
-        user_auth_service: UserAuthService,
+        provider_repository: IdentityProviderRepository,
         user_repository: UserRepository,
-        user_identity_repository: UserIdentityRepository,
-        identity_repository: IdentityProviderRepository,
-        session_store: BaseStore[Session],
         codes_store: BaseStore[Codes],
-        api: VKApi,
+        session_store: BaseStore[Session],
     ) -> None:
         super().__init__(
-            user_auth_service=user_auth_service,
+            provider_repository=provider_repository,
             user_repository=user_repository,
-            user_identity_repository=user_identity_repository,
-            identity_repository=identity_repository,
             session_store=session_store,
             codes_store=codes_store,
-            api=api,
         )
+
+    async def _get_access_token(self, params: dict) -> str:
+        async with (
+            ClientSession() as session,
+            session.post(url=f"{PATH_VK}oauth2/auth", json=params, ssl=False) as data,
+        ):
+            self.logger.warning(data)
+            result = await valid_answer(data)
+            return result["access_token"]
+
+    async def _get_userinfo(self, access_token: str) -> UserIdentity:
+        async with (
+            ClientSession() as session,
+            session.post(
+                url=f"{PATH_VK}oauth2/user_info",
+                json={"access_token": access_token, "client_id": settings.vk_settings.vk_app_id},
+                ssl=False,
+            ) as data,
+        ):
+            self.logger.warning(data)
+            result = (await valid_answer(response=data))["user"]
+            return UserIdentity(
+                provider_user_id=result["user_id"],
+                email=result["email"].lower(),
+            )
 
     async def generate_url(self) -> str:
         codes = Codes.generate()
-        key = self.codes_store.build_key(codes.state)
-        await self.codes_store.add(key, codes, ttl=200)
+        await self.codes_store.add(key=codes.state, ttl=200, schema=codes)
         return VKRedirect().to_url(state=codes.state, code_challenge=codes.code_challenge)
 
-    async def authenticate(self, realm: str, schema: VKCallback) -> TokenPair:
-        data = await self.callback(schema)
-        user = await self.user_repository.get_by_provider(data.user_id)  # type: ignore  # noqa: PGH003
+    async def _handle_callback(self, callback: BaseCallback) -> str:
+        codes = await self.codes_store.pop(callback.state)
+        if codes is None:
+            raise BadRequestHTTPError
+        return await self._get_access_token(
+            params=callback.to_dict(code_verifier=codes.code_verifier)
+        )
+
+    async def authenticate(self, realm: str, callback: BaseCallback) -> TokenPair:
+        access_token = await self._handle_callback(callback)
+        userinfo = await self._get_userinfo(access_token)
+        user = await self.user_repository.get_by_provider(userinfo.provider_user_id)
         if user is None:
             raise BadRequestHTTPError("User not found")
-        roles = await self.user_auth_service._give_roles(realm, user.id)
+        roles = await give_roles(realm, user.id, self.user_repository)
         payload = user.to_payload(realm=realm, roles=roles)
         session = Session(user_id=user.id, expires_at=expires_at(SESSION_EXPIRE_IN))
-        key = self.session_store.build_key(session.session_id)
-        await self.session_store.add(key, session, ttl=int(session.expires_at - time.time()))
-        return self.user_auth_service._generate_token_pair(payload, session.session_id)
+        await self.session_store.add(
+            str(session.session_id), session, ttl=int(session.expires_at - time.time())
+        )
+        return generate_token_pair(payload, session.session_id)

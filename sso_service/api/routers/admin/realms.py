@@ -1,6 +1,5 @@
 from typing import Annotated
 
-import logging
 from uuid import UUID
 
 from dishka.integrations.fastapi import DishkaRoute
@@ -11,8 +10,6 @@ from sso_service.core.domain import Client, Group, Realm
 from sso_service.database.repository import ClientRepository, GroupRepository, RealmRepository
 
 from ...schemas import GroupCreate, RealmCreate, RealmUpdate
-
-logger = logging.getLogger(__name__)
 
 realms_router = APIRouter(prefix="/realms", tags=["Realms"], route_class=DishkaRoute)
 

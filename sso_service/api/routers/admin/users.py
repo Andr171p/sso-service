@@ -1,6 +1,5 @@
 from typing import Annotated
 
-import logging
 from uuid import UUID
 
 from dishka.integrations.fastapi import DishkaRoute
@@ -11,8 +10,6 @@ from sso_service.core.domain import User
 from sso_service.database.repository import UserRepository
 
 from ...schemas import UserUpdate
-
-logger = logging.getLogger(__name__)
 
 users_router = APIRouter(prefix="/users", tags=["Users"], route_class=DishkaRoute)
 
