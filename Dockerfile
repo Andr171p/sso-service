@@ -1,31 +1,20 @@
-FROM python:3.13-slim as builder
+FROM python:3.13-slim
 
 WORKDIR /app
 
-RUN pip install uv
-COPY pyproject.toml .
-RUN uv lock && uv sync --frozen --no-cache
+RUN apt-get update && apt-get install -y \
+    postgresql-client \
+    netcat-openbsd \
+    && rm -rf /var/lib/apt/lists/*
+
+COPY requirements.txt .
+RUN pip install --upgrade pip && \
+    pip install --no-cache-dir -r requirements.txt
+
 COPY . .
 
-FROM python:3.13-slim as runtime
+RUN chmod +x entrypoint.sh
 
-WORKDIR /app
+EXPOSE 8000
 
-COPY --from=builder /app/.venv /app/.venv
-ENV PATH="/app/.venv/bin:$PATH"
-
-COPY --from=builder /app /app
-
-RUN echo '#!/bin/sh\n\
-set -e\n\
-\n\
-echo "Running migrations..."\n\
-alembic upgrade head\n\
-\n\
-echo "Starting application..."\n\
-exec uvicorn main:app --host 0.0.0.0 --port 8000\n\
-' > /app/entrypoint.sh && chmod +x /app/entrypoint.sh
-
-ENV PYTHONUNBUFFERED=1
-
-ENTRYPOINT ["/app/entrypoint.sh"]
+CMD ["./entrypoint.sh"]

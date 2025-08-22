@@ -61,7 +61,7 @@ class RedisSettings(BaseSettings):
 class PostgresSettings(BaseSettings):
     user: str = ""
     password: str = ""
-    host: str = "localhost"
+    host: str = "postgres"
     port: int = 5432
     db: str = ""
     driver: Literal["asyncpg"] = "asyncpg"
