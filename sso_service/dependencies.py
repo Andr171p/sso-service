@@ -5,7 +5,7 @@ from redis.asyncio import Redis as AsyncRedis
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 from .core.base import BaseStore
-from .core.domain import Session
+from .core.domain import Codes, Session
 from .database.base import create_sessionmaker
 from .database.repository import (
     ClientRepository,
@@ -14,10 +14,15 @@ from .database.repository import (
     RealmRepository,
     UserRepository,
 )
-from .providers import ClientCredentialsProvider, UserCredentialsProvider
+from .providers import (
+    ClientCredentialsProvider,
+    UserCredentialsProvider,
+    VKProvider,
+    YandexProvider,
+)
 from .services import ClientTokenService, UserTokenService
 from .settings import Settings, settings
-from .storage import RedisSessionStore
+from .storage import RedisCodesStore, RedisSessionStore
 
 
 class AppProvider(Provider):
@@ -65,16 +70,20 @@ class AppProvider(Provider):
     def get_session_store(self, redis: AsyncRedis) -> BaseStore[Session]:  # noqa: PLR6301
         return RedisSessionStore(redis, prefix="session")
 
+    @provide(scope=Scope.APP)
+    def get_codes_store(self, redis: AsyncRedis) -> BaseStore[Codes]:  # noqa: PLR6301
+        return RedisCodesStore(redis, prefix="codes")
+
     @provide(scope=Scope.REQUEST)
     def get_client_token_service(self) -> ClientTokenService:  # noqa: PLR6301
         return ClientTokenService()
 
     @provide(scope=Scope.REQUEST)
     def get_user_token_service(  # noqa: PLR6301
-            self,
-            user_repository: UserRepository,
-            realm_repository: RealmRepository,
-            session_store: BaseStore[Session]
+        self,
+        user_repository: UserRepository,
+        realm_repository: RealmRepository,
+        session_store: BaseStore[Session],
     ) -> UserTokenService:
         return UserTokenService(user_repository, realm_repository, session_store)
 
@@ -86,9 +95,39 @@ class AppProvider(Provider):
 
     @provide(scope=Scope.REQUEST)
     def get_user_credentials_provider(  # noqa: PLR6301
-            self, repository: UserRepository, session_store: BaseStore[Session]
+        self, repository: UserRepository, session_store: BaseStore[Session]
     ) -> UserCredentialsProvider:
         return UserCredentialsProvider(repository, session_store)
+
+    @provide(scope=Scope.REQUEST)
+    def get_vk_provider(  # noqa: PLR6301
+        self,
+        provider_repository: IdentityProviderRepository,
+        user_repository: UserRepository,
+        codes_store: BaseStore[Codes],
+        session_store: BaseStore[Session],
+    ) -> VKProvider:
+        return VKProvider(
+            provider_repository=provider_repository,
+            user_repository=user_repository,
+            session_store=session_store,
+            codes_store=codes_store,
+        )
+
+    @provide(scope=Scope.REQUEST)
+    def get_yandex_provider(  # noqa: PLR6301
+        self,
+        provider_repository: IdentityProviderRepository,
+        user_repository: UserRepository,
+        codes_store: BaseStore[Codes],
+        session_store: BaseStore[Session],
+    ) -> YandexProvider:
+        return YandexProvider(
+            provider_repository=provider_repository,
+            user_repository=user_repository,
+            session_store=session_store,
+            codes_store=codes_store,
+        )
 
 
 container = make_async_container(AppProvider(), context={Settings: settings})

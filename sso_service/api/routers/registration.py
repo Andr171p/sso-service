@@ -7,9 +7,7 @@ from ...providers import UserCredentialsProvider
 from ..schemas import UserRegistration
 
 registration_router = APIRouter(
-    prefix="/registration",
-    tags=["Registration"],
-    route_class=DishkaRoute
+    prefix="/registration", tags=["Registration"], route_class=DishkaRoute
 )
 
 
@@ -18,10 +16,10 @@ registration_router = APIRouter(
     status_code=status.HTTP_201_CREATED,
     response_model=User,
     response_model_exclude={"password"},
-    summary="Регистрирует пользователя"
+    summary="Регистрирует пользователя",
 )
 async def register_user(
-        user: UserRegistration, provider: Depends[UserCredentialsProvider]
+    user: UserRegistration, provider: Depends[UserCredentialsProvider]
 ) -> User:
     user = User.model_validate(user)
     return await provider.register(user)

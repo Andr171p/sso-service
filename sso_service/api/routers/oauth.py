@@ -18,9 +18,7 @@ oauth_router = APIRouter(prefix="/{realm}/oauth", tags=["OAuth"], route_class=Di
     summary="Выдаёт токен клиенту",
 )
 async def issue_token(
-        realm: str,
-        credentials: ClientCredentials,
-        provider: Depends[ClientCredentialsProvider]
+    realm: str, credentials: ClientCredentials, provider: Depends[ClientCredentialsProvider]
 ) -> Token:
     return await provider.authenticate(
         realm=realm,
@@ -36,11 +34,9 @@ async def issue_token(
     status_code=status.HTTP_200_OK,
     response_model=ClientClaims,
     response_model_exclude_none=True,
-    summary="Декодирует и валидирует токен"
+    summary="Декодирует и валидирует токен",
 )
 async def introspect_token(
-        realm: str,
-        token: TokenIntrospect,
-        service: Depends[ClientTokenService]
+    realm: str, token: TokenIntrospect, service: Depends[ClientTokenService]
 ) -> ClientClaims:
     return await service.introspect(token.token, realm=realm)

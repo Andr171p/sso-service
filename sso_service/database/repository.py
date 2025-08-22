@@ -151,7 +151,7 @@ class UserRepository(CRUDRepository[UserModel, User]):
     schema = User
 
     async def create_with_identity(
-            self, user_identity: UserIdentity, *, status: UserStatus = UserStatus.ACTIVE
+        self, user_identity: UserIdentity, *, status: UserStatus = UserStatus.ACTIVE
     ) -> User:
         """Создает нового пользователя и привязывает identity провайдера в атомарной транзакции.
 
@@ -164,17 +164,16 @@ class UserRepository(CRUDRepository[UserModel, User]):
         :return: Созданный объект User с заполненным ID.
         """
         try:
-            async with self.session.begin():
-                model = self.model(
-                    email=user_identity.email,
-                    status=status,
-                    user_identities=[UserIdentityModel(**user_identity.model_dump())],
-                )
-                self.session.add(model)
-                await self.session.flush()
+            model = self.model(
+                email=user_identity.email,
+                status=status,
+                user_identities=[UserIdentityModel(**user_identity.model_dump())],
+            )
+            self.session.add(model)
+
+            await self.session.commit()  # Явный коммит если нет внешней транзакции
             return self.schema.model_validate(model)
         except SQLAlchemyError as e:
-            await self.session.rollback()
             raise CreationError(f"Error while creating user with identity: {e}") from e
 
     async def get_by_email(self, email: str) -> User | None:
@@ -220,14 +219,8 @@ class UserRepository(CRUDRepository[UserModel, User]):
                 select(GroupModel)
                 .join(RealmModel, GroupModel.realm_id == RealmModel.id)
                 .join(UserGroupModel, GroupModel.id == UserGroupModel.group_id)
-                .where(
-                    (UserGroupModel.user_id == id) &
-                    (RealmModel.slug == realm_slug)
-                )
-                .options(
-                    joinedload(GroupModel.realm),
-                    joinedload(GroupModel.user_groups)
-                )
+                .where((UserGroupModel.user_id == id) & (RealmModel.slug == realm_slug))
+                .options(joinedload(GroupModel.realm), joinedload(GroupModel.user_groups))
             )
             result = await self.session.execute(stmt)
             models = result.scalars().all()

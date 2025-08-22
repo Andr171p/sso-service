@@ -22,17 +22,11 @@ class VKSettings(BaseSettings):
     vk_app_secret: str = ""
     vk_client_secret: str = ""
     vk_redirect_uri: str = ""
-    vk_auth_url: str = ""
-    vk_token_url: str = ""
-    vk_api_url: str = ""
 
 
 class YandexSettings(BaseSettings):
     yandex_app_id: str = ""
     yandex_app_secret: str = ""
-    yandex_auth_url: str = ""
-    yandex_token_url: str = ""
-    yandex_api_url: str = ""
 
 
 class SecretSettings(BaseSettings):

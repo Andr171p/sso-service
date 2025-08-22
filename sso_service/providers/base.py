@@ -1,20 +1,21 @@
-from typing import Any
-
 import time
 from abc import ABC, abstractmethod
+from logging import getLogger
 
-from cachetools.func import ttl_cache
-
-from ..core.base import BaseStore
+from ..core.base import BaseStore, LoggerMixin
 from ..core.constants import SESSION_EXPIRE_IN
-from ..core.domain import BaseCallback, IdentityProvider, Session, TokenPair, UserIdentity
-from ..core.exceptions import NotEnabledError, NotRegisteredResourceError
+from ..core.domain import BaseCallback, Codes, Session, TokenPair, UserIdentity
+from ..core.exceptions import NotFoundHTTPError
 from ..core.utils import expires_at
 from ..database.repository import IdentityProviderRepository, UserRepository
 from ..services import generate_token_pair, give_roles
 
 CACHE_MAXSIZE = 128
-PROVIDER_TTL = 60 * 60 * 3
+PROVIDER_TTL = 60 * 60
+
+
+class BaseProvider(LoggerMixin):
+    logger = getLogger("provider")
 
 
 class BaseOAuthProvider(ABC):
@@ -24,19 +25,18 @@ class BaseOAuthProvider(ABC):
     Для имплементации нового класса нужно наследоваться от BaseOAuthProvider
     и реализовать все необходимые методы.
     """
-    provider_repository: IdentityProviderRepository
-    user_repository: UserRepository
-    session_store: BaseStore[Session]
 
-    @ttl_cache(maxsize=CACHE_MAXSIZE, ttl=PROVIDER_TTL)
-    async def _get_provider(self) -> IdentityProvider:
-        """Получает провайдера по его уникальному имени"""
-        provider = await self.provider_repository.get_by_name(self.name)
-        if provider is None:
-            raise NotRegisteredResourceError("Provider not registered or not found")
-        if not provider.enabled:
-            raise NotEnabledError("Provider not enabled!")
-        return provider
+    def __init__(
+        self,
+        provider_repository: IdentityProviderRepository,
+        user_repository: UserRepository,
+        session_store: BaseStore[Session],
+        codes_store: BaseStore[Codes],
+    ) -> None:
+        self.provider_repository = provider_repository
+        self.user_repository = user_repository
+        self.session_store = session_store
+        self.codes_store = codes_store
 
     @property
     @abstractmethod
@@ -45,24 +45,27 @@ class BaseOAuthProvider(ABC):
         raise NotImplementedError
 
     @abstractmethod
-    async def _get_access_token(self) -> str:
+    async def _get_access_token(self, params: dict) -> str:
         """Получает access token для отправки запросов к провайдеру"""
         raise NotImplementedError
 
     @abstractmethod
-    async def get_userinfo(self, access_token: str) -> dict[str, Any]:
+    async def _get_userinfo(self, *args) -> UserIdentity:
         """Получение информации о пользователе от провайдера"""
         raise NotImplementedError
 
     @abstractmethod
     async def _handle_callback(self, callback: BaseCallback) -> str:
-        """Обрабатывает callback и возвращает access token"""
         raise NotImplementedError
 
     async def register(self, realm: str, callback: BaseCallback) -> TokenPair:
+        provider = await self.provider_repository.get_by_name(self.name)
+        if provider is None:
+            raise NotFoundHTTPError("Provider not found")
         access_token = await self._handle_callback(callback)
-        userinfo = await self.get_userinfo(access_token)
-        user = await self.user_repository.create_with_identity(UserIdentity(**userinfo))
+        userinfo = await self._get_userinfo(access_token)
+        userinfo.provider_id = provider.id
+        user = await self.user_repository.create_with_identity(userinfo)
         roles = await give_roles(realm, user.id, self.user_repository)
         payload = user.to_payload(realm=realm, roles=roles)
         session = Session(user_id=user.id, expires_at=expires_at(SESSION_EXPIRE_IN))

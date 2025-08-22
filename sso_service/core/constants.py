@@ -8,6 +8,8 @@ MIN_STATUS_CODE = 100
 GOOD_STATUS_CODE = 200
 BYTES_SECRET_KEY_HASH = bytes(settings.secret_settings.secret_key_hash, "utf-8")
 
+PATH_VK = "https://id.vk.com/"
+PATH_YANDEX = "https://oauth.yandex.ru/"
 # Крайние значения для client
 MIN_CLIENT_ID_LENGTH = 3
 MAX_CLIENT_ID_LENGTH = 63

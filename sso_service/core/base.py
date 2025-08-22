@@ -33,7 +33,7 @@ class BaseStore[T: BaseModel](ABC):
 
     @abstractmethod
     async def add(
-            self, key: str | UUID, schema: T, ttl: timedelta | int | None = DEFAULT_TTL
+        self, key: str | UUID, schema: T, ttl: timedelta | int | None = DEFAULT_TTL
     ) -> None:
         """Добавляет объект в хранилище
 
