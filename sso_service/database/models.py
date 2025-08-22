@@ -99,8 +99,6 @@ class IdentityProviderModel(Base):
 
     name: Mapped[StrUnique]
     protocol: Mapped[str]
-    client_id: Mapped[StrUnique]
-    client_secret: Mapped[StrUnique]
     scopes: Mapped[StringArray]
     enabled: Mapped[bool]
 

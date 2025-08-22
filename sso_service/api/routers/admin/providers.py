@@ -9,6 +9,8 @@ from fastapi import APIRouter, HTTPException, Query, status
 from sso_service.core.domain import IdentityProvider
 from sso_service.database.repository import IdentityProviderRepository
 
+from ...schemas import IdentityProviderCreate
+
 providers_router = APIRouter(
     prefix="/providers", tags=["Identity Providers"], route_class=DishkaRoute
 )
@@ -21,9 +23,9 @@ providers_router = APIRouter(
     summary="Создаёт провайдера для аутентификации"
 )
 async def create_provider(
-        provider: IdentityProvider, repository: Depends[IdentityProviderRepository]
+        provider_create: IdentityProviderCreate, repository: Depends[IdentityProviderRepository]
 ) -> IdentityProvider:
-    return await repository.create(provider)
+    return await repository.create(IdentityProvider.model_validate(provider_create))
 
 
 @providers_router.get(

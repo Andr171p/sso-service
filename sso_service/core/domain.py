@@ -188,8 +188,6 @@ class IdentityProvider(BaseModel):
     id: UUID = Field(default_factory=uuid4)
     name: str
     protocol: ProtocolType
-    client_id: str
-    client_secret: SecretStr
     scopes: list[str] = Field(default_factory=list)
     enabled: bool = True
 

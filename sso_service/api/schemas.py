@@ -5,7 +5,7 @@ from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict, EmailStr, SecretStr, field_validator
 
-from ..core.enums import ClientType, GrantType, Role, UserStatus
+from ..core.enums import ClientType, GrantType, ProtocolType, Role, UserStatus
 
 
 class RealmCreate(BaseModel):
@@ -123,3 +123,10 @@ class UserUpdate(BaseModel):
         if status in {UserStatus.REGISTERED, UserStatus.ACTIVE}:
             raise ValueError("Invalid status")
         return status
+
+
+class IdentityProviderCreate(BaseModel):
+    name: str
+    protocol: ProtocolType
+    scopes: list[str]
+    enabled: bool = True
