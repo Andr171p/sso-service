@@ -18,12 +18,12 @@ users_router = APIRouter(prefix="/users", tags=["Users"], route_class=DishkaRout
     path="",
     status_code=status.HTTP_200_OK,
     response_model=list[User],
-    summary="Получает всех пользователей"
+    summary="Получает всех пользователей",
 )
 async def get_users(
-        page: Annotated[int, Query(...)],
-        limit: Annotated[int, Query(...)],
-        repository: Depends[UserRepository]
+    page: Annotated[int, Query(...)],
+    limit: Annotated[int, Query(...)],
+    repository: Depends[UserRepository],
 ) -> list[User]:
     return await repository.read_all(page, limit)
 
@@ -32,14 +32,12 @@ async def get_users(
     path="/{id}",
     status_code=status.HTTP_200_OK,
     response_model=User,
-    summary="Получает конкретного пользователя"
+    summary="Получает конкретного пользователя",
 )
 async def get_user(id: UUID, repository: Depends[UserRepository]) -> User:  # noqa: A002
     user = await repository.read(id)
     if not user:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND, detail="User does not exist"
-        )
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User does not exist")
     return user
 
 
@@ -47,14 +45,14 @@ async def get_user(id: UUID, repository: Depends[UserRepository]) -> User:  # no
     path="/{id}",
     status_code=status.HTTP_200_OK,
     response_model=User,
-    summary="Обновляет статус пользователя"
+    summary="Обновляет статус пользователя",
 )
 async def update_user(
-        id: UUID, user: UserUpdate, repository: Depends[UserRepository]  # noqa: A002
+    id: UUID,
+    user: UserUpdate,
+    repository: Depends[UserRepository],
 ) -> User:
     updated_user = await repository.update(id, status=user.status)
     if not updated_user:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND, detail="User not found"
-        )
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found")
     return updated_user

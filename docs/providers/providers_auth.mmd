@@ -1,0 +1,13 @@
+sequenceDiagram
+    participant U as User
+    participant F as Frontend
+    participant S as SSO
+
+
+    U->>F: Pressed the button
+    F->>S: GET https://api/v1/link
+    S->>F: Выдает url
+    F->>U: Redirect по url
+    U->>F: Получает в url строки(state, code, device_id)
+    F->>S: POST https://api/v1/registration or https://api/v1/authentication
+    S->>F: Отдает Токены
