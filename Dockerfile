@@ -5,6 +5,7 @@ WORKDIR /app
 RUN apt-get update && apt-get install -y \
     postgresql-client \
     netcat-openbsd \
+    dos2unix \
     && rm -rf /var/lib/apt/lists/*
 
 COPY requirements.txt .
@@ -13,7 +14,9 @@ RUN pip install --upgrade pip && \
 
 COPY . .
 
-RUN chmod +x entrypoint.sh
+# Конвертируем в Unix формат и делаем исполняемым
+RUN dos2unix entrypoint.sh && \
+    chmod +x entrypoint.sh
 
 EXPOSE 8000
 

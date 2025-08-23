@@ -1,4 +1,4 @@
-KiB
+
 """init
 Revision ID: 8dd214d19a59
 Revises: 
