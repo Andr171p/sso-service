@@ -49,11 +49,11 @@ class UnauthorizedError(_AuthenticationError):
     """Ошибка несанкционированного доступа"""
 
 
-class NotEnabledError(_AuthenticationError):
+class NotEnabledError(UnauthorizedError):
     """Запрашиваемый ресурс пока не доступен"""
 
 
-class PermissionDeniedError(_AuthenticationError):
+class PermissionDeniedError(UnauthorizedError):
     """Ошибка прав доступа"""
 
 

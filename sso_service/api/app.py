@@ -3,17 +3,13 @@ from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 
 from dishka.integrations.fastapi import setup_dishka
-from fastapi import FastAPI, Request, status
+from fastapi import FastAPI, HTTPException, Request, status
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import JSONResponse
 
 from ..core.exceptions import (
     AlreadyExistsError,
     CreationError,
     DeletionError,
-    InvalidCredentialsError,
-    NotEnabledError,
-    PermissionDeniedError,
     ReadingError,
     UnauthorizedError,
     UnsupportedGrantTypeError,
@@ -50,92 +46,72 @@ def setup_middleware(app: FastAPI) -> None:
 def setup_errors_handlers(app: FastAPI) -> None:
     @app.exception_handler(CreationError)
     def handle_creation_error(
-        request: Request,
-        exc: CreationError,  # noqa: ARG001
-    ) -> JSONResponse:
+        request: Request,  # noqa: ARG001
+        exc: CreationError,
+    ) -> HTTPException:
         logger.error(exc)
-        return JSONResponse(
+        return HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            content={"message": "Error while resource creation"},
+            detail="Error while resource creation",
         )
 
     @app.exception_handler(ReadingError)
     def handle_reading_error(
-        request: Request,
-        exc: ReadingError,  # noqa: ARG001
-    ) -> JSONResponse:
+        request: Request,  # noqa: ARG001
+        exc: ReadingError,
+    ) -> HTTPException:
         logger.error(exc)
-        return JSONResponse(
+        return HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            content={"message": "Error while resource reading"},
+            detail="Error while resource reading",
         )
 
     @app.exception_handler(UpdateError)
     def handle_update_error(
-        request: Request,
-        exc: UpdateError,  # noqa: ARG001
-    ) -> JSONResponse:
+        request: Request,  # noqa: ARG001
+        exc: UpdateError,
+    ) -> HTTPException:
         logger.error(exc)
-        return JSONResponse(
+        return HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            content={"message": "Error while resource update"},
+            detail="Error while resource update",
         )
 
     @app.exception_handler(AlreadyExistsError)
     def handle_already_exists_error(
-        request: Request,
-        exc: AlreadyExistsError,  # noqa: ARG001
-    ) -> JSONResponse:
+        request: Request,  # noqa: ARG001
+        exc: AlreadyExistsError,
+    ) -> HTTPException:
         logger.error(exc)
-        return JSONResponse(
-            status_code=status.HTTP_409_CONFLICT, content={"message": "Resource already exists"}
+        return HTTPException(
+            status_code=status.HTTP_409_CONFLICT, detail="Resource already exists"
         )
 
     @app.exception_handler(DeletionError)
     def handle_deletion_error(
-        request: Request,
-        exc: DeletionError,  # noqa: ARG001
-    ) -> JSONResponse:
+        request: Request,  # noqa: ARG001
+        exc: DeletionError,
+    ) -> HTTPException:
         logger.error(exc)
-        return JSONResponse(
+        return HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            content={"message": "Error while resource deletion"},
+            detail="Error while resource deletion",
         )
 
     @app.exception_handler(UnsupportedGrantTypeError)
     def handle_unsupported_grant_type_error(
-        request: Request,
-        exc: UnsupportedGrantTypeError,  # noqa: ARG001
-    ) -> JSONResponse:
-        logger.error(exc)
-        return JSONResponse(status_code=status.HTTP_400_BAD_REQUEST, content={"message": str(exc)})
+        request: Request,  # noqa: ARG001
+        exc: UnsupportedGrantTypeError,
+    ) -> HTTPException:
+        return HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)
+        )
 
     @app.exception_handler(UnauthorizedError)
     def handle_unauthorized_error(
-        request: Request,
-        exc: UnauthorizedError,  # noqa: ARG001
-    ) -> JSONResponse:
-        logger.error(exc)
-        return JSONResponse(
-            status_code=status.HTTP_401_UNAUTHORIZED, content={"message": str(exc)}
-        )
-
-    @app.exception_handler(NotEnabledError)
-    def handle_invalid_credentials_error(
-        request: Request,
-        exc: InvalidCredentialsError,  # noqa: ARG001
-    ) -> JSONResponse:
-        logger.error(exc)
-        return JSONResponse(
-            status_code=status.HTTP_401_UNAUTHORIZED, content={"message": str(exc)}
-        )
-
-    @app.exception_handler(PermissionDeniedError)
-    def handle_permission_denied_error(
-        request: Request,
-        exc: InvalidCredentialsError,  # noqa: ARG001
-    ) -> JSONResponse:
-        logger.error(exc)
-        return JSONResponse(
-            status_code=status.HTTP_401_UNAUTHORIZED, content={"message": str(exc)}
+        request: Request,  # noqa: ARG001
+        exc: UnauthorizedError,
+    ) -> HTTPException:
+        return HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED, detail=str(exc)
         )
