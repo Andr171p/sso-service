@@ -6,6 +6,7 @@ from dishka.integrations.fastapi import DishkaRoute
 from dishka.integrations.fastapi import FromDishka as Depends
 from fastapi import APIRouter, HTTPException, Query, status
 
+from sso_service.core.constants import MIN_LIMIT, MIN_PAGE
 from sso_service.core.domain import IdentityProvider
 from sso_service.database.repository import IdentityProviderRepository
 
@@ -35,8 +36,8 @@ async def create_provider(
     summary="Получает все провайдеры аутентификации"
 )
 async def get_providers(
-        limit: Annotated[int, Query(..., description="Лимит провайдеров на одной странице")],
-        page: Annotated[int, Query(..., description="Страница с провайдерами")],
+        limit: Annotated[int, Query(..., gt=MIN_LIMIT)],
+        page: Annotated[int, Query(..., gt=MIN_PAGE)],
         repository: Depends[IdentityProviderRepository]
 ) -> list[IdentityProvider]:
     return await repository.read_all(limit, page)

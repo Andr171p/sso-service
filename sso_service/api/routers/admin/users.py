@@ -6,6 +6,7 @@ from dishka.integrations.fastapi import DishkaRoute
 from dishka.integrations.fastapi import FromDishka as Depends
 from fastapi import APIRouter, HTTPException, Query, status
 
+from sso_service.core.constants import MIN_LIMIT, MIN_PAGE
 from sso_service.core.domain import User
 from sso_service.database.repository import UserRepository
 
@@ -21,8 +22,8 @@ users_router = APIRouter(prefix="/users", tags=["Users"], route_class=DishkaRout
     summary="Получает всех пользователей",
 )
 async def get_users(
-    page: Annotated[int, Query(...)],
-    limit: Annotated[int, Query(...)],
+    page: Annotated[int, Query(..., gt=MIN_PAGE)],
+    limit: Annotated[int, Query(..., gt=MIN_LIMIT)],
     repository: Depends[UserRepository],
 ) -> list[User]:
     return await repository.read_all(page, limit)

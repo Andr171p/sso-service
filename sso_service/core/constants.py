@@ -38,3 +38,6 @@ TIME_COST = 2
 PARALLELISM = 2
 SALT_SIZE = 16
 ROUNDS = 14  # Количество раундов для хеширования
+# Пагинация
+MIN_LIMIT = 1
+MIN_PAGE = 1

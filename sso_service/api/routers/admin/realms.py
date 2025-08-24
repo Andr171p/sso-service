@@ -6,6 +6,7 @@ from dishka.integrations.fastapi import DishkaRoute
 from dishka.integrations.fastapi import FromDishka as Depends
 from fastapi import APIRouter, HTTPException, Query, status
 
+from sso_service.core.constants import MIN_LIMIT, MIN_PAGE
 from sso_service.core.domain import Client, Group, Realm
 from sso_service.database.repository import ClientRepository, GroupRepository, RealmRepository
 
@@ -31,8 +32,8 @@ async def create_realm(realm_create: RealmCreate, repository: Depends[RealmRepos
     summary="Получает все области созданные админом",
 )
 async def get_realms(
-    limit: Annotated[int, Query(..., ge=0)],
-    page: Annotated[int, Query(..., ge=0)],
+    limit: Annotated[int, Query(..., gt=MIN_LIMIT)],
+    page: Annotated[int, Query(..., gt=MIN_PAGE)],
     repository: Depends[RealmRepository],
 ) -> list[Realm]:
     return await repository.read_all(limit, page)
@@ -91,7 +92,7 @@ async def delete_realm(id: UUID, repository: Depends[RealmRepository]) -> None: 
     response_model=list[Client],
     summary="Получает всех клинтов в заданной области"
 )
-async def get_client_by_realm(
+async def get_clients_by_realm(
         id: UUID, repository: Depends[ClientRepository]  # noqa: A002
 ) -> list[Client]:
     return await repository.get_by_realm(id)

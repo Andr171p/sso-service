@@ -14,7 +14,6 @@ RUN pip install --upgrade pip && \
 
 COPY . .
 
-# Конвертируем в Unix формат и делаем исполняемым
 RUN dos2unix entrypoint.sh && \
     chmod +x entrypoint.sh
 
