@@ -22,8 +22,8 @@ users_router = APIRouter(prefix="/users", tags=["Users"], route_class=DishkaRout
     summary="Получает всех пользователей",
 )
 async def get_users(
-    page: Annotated[int, Query(..., gt=MIN_PAGE)],
-    limit: Annotated[int, Query(..., gt=MIN_LIMIT)],
+    limit: Annotated[int, Query(..., ge=MIN_LIMIT)],
+    page: Annotated[int, Query(..., ge=MIN_PAGE)],
     repository: Depends[UserRepository],
 ) -> list[User]:
     return await repository.read_all(page, limit)

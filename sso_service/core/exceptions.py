@@ -37,12 +37,12 @@ class _AuthenticationError(Exception):
     """Базовая ошибка аутентификации"""
 
 
-class UnsupportedGrantTypeError(_AuthenticationError):
-    """Не валидный grant type"""
-
-
 class InvalidCredentialsError(_AuthenticationError):
     """Не валидные авторизационные данные"""
+
+
+class UnsupportedGrantTypeError(InvalidCredentialsError):
+    """Не валидный grant type"""
 
 
 class UnauthorizedError(_AuthenticationError):

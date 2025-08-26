@@ -32,8 +32,8 @@ async def create_realm(realm_create: RealmCreate, repository: Depends[RealmRepos
     summary="Получает все области созданные админом",
 )
 async def get_realms(
-    limit: Annotated[int, Query(..., gt=MIN_LIMIT)],
-    page: Annotated[int, Query(..., gt=MIN_PAGE)],
+    limit: Annotated[int, Query(..., ge=MIN_LIMIT)],
+    page: Annotated[int, Query(..., ge=MIN_PAGE)],
     repository: Depends[RealmRepository],
 ) -> list[Realm]:
     return await repository.read_all(limit, page)

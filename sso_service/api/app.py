@@ -10,9 +10,9 @@ from ..core.exceptions import (
     AlreadyExistsError,
     CreationError,
     DeletionError,
+    InvalidCredentialsError,
     ReadingError,
     UnauthorizedError,
-    UnsupportedGrantTypeError,
     UpdateError,
 )
 from ..dependencies import container
@@ -98,10 +98,10 @@ def setup_errors_handlers(app: FastAPI) -> None:
             detail="Error while resource deletion",
         )
 
-    @app.exception_handler(UnsupportedGrantTypeError)
+    @app.exception_handler(InvalidCredentialsError)
     def handle_unsupported_grant_type_error(
         request: Request,  # noqa: ARG001
-        exc: UnsupportedGrantTypeError,
+        exc: InvalidCredentialsError,
     ) -> HTTPException:
         return HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)
