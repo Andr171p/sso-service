@@ -1,0 +1,19 @@
+sequenceDiagram
+    participant U as User
+    participant A1 as App-1
+    participant A2 as App-2
+    participant S as SSO
+
+    U->>A1: GET https://app-1.example.ru
+    A1->>A1: Проверяет наличие access и session id
+    A1->>U: Redirect https://sso.example.ru\login
+    U->>S: email + password
+    S->>U: access, refresh + session id
+    U->>A1: Взаимодействие с app-1
+    U->>A2: GET https://app-2.example.ru
+    A2->>A2: Проверка наличия access + session id
+    A2->>S: Валидация access и session id
+    S->>A2: Не валидный access, действителен session id
+    A2->>S: Запрос на переход в app-2
+    S->>U: Новые access, refresh
+    U->>A2: Взаимодействие с app-2

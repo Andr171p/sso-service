@@ -28,3 +28,47 @@ sequenceDiagram
    (session_id нужен для перехода между realms, т.е приложениями)
 5. Пользователь передаёт access и session_id при каждом следующем запросе.
 6. Приложение возвращает контент для аутентифицированного пользователя.
+
+
+### Регистрация пользователя
+
+```mermaid
+sequenceDiagram
+    participant U as User
+    participant A as App
+    participant S as SSO
+    
+    U->>A: GET https://app.example.ru
+    A->>A: Проверка JWT + session
+    A-->>U: Redirect https://sso.example.ru/login
+    U-->>U: Нет логина и пароля
+    U->>S: GET https://sso.example.ru/register
+    S->>S: Сохраняет email и пароль
+    S->>U: Письмо для подтверждения
+    U->>S: Подтверждение email
+    S->>S: Обновление статуса на email_verified
+```
+
+### Переход между realms
+
+```mermaid
+sequenceDiagram
+    participant U as User
+    participant A1 as App-1
+    participant A2 as App-2
+    participant S as SSO
+
+    U->>A1: GET https://app-1.example.ru
+    A1->>A1: Проверяет наличие access и session id
+    A1->>U: Redirect https://sso.example.ru\login
+    U->>S: email + password
+    S->>U: access, refresh + session id
+    U->>A1: Взаимодействие с app-1
+    U->>A2: GET https://app-2.example.ru
+    A2->>A2: Проверка наличия access + session id
+    A2->>S: Валидация access и session id
+    S->>A2: Не валидный access, действителен session id
+    A2->>S: Запрос на переход в app-2
+    S->>U: Новые access, refresh
+    U->>A2: Взаимодействие с app-2
+```
