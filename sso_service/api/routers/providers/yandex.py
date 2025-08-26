@@ -1,7 +1,8 @@
 from dishka.integrations.fastapi import DishkaRoute
 from dishka.integrations.fastapi import FromDishka as Depends
-from fastapi import APIRouter, status
+from fastapi import APIRouter, Response, status
 
+from ....core.constants import SESSION_EXPIRE_IN
 from ....core.domain import TokenPair, YandexCallback
 from ....providers.yandex import YandexProvider
 
@@ -22,9 +23,19 @@ async def yandex_generate_url(provider: Depends[YandexProvider]) -> str:
 async def yandex_registration(
     realm: str,
     schema: YandexCallback,
+    response: Response,
     provider: Depends[YandexProvider],
 ) -> TokenPair:
-    return await provider.register(callback=schema, realm=realm)
+    token_pair = await provider.register(callback=schema, realm=realm)
+    response.set_cookie(
+        key="session_id",
+        value=str(token_pair.session_id),
+        httponly=True,
+        secure=False,
+        samesite="lax",
+        max_age=int(SESSION_EXPIRE_IN.total_seconds()),
+    )
+    return token_pair
 
 
 @yandex_router.post(
@@ -36,6 +47,16 @@ async def yandex_registration(
 async def yandex_authentication(
     realm: str,
     schema: YandexCallback,
+    response: Response,
     provider: Depends[YandexProvider],
 ) -> TokenPair:
-    return await provider.authenticate(callback=schema, realm=realm)
+    token_pair = await provider.authenticate(callback=schema, realm=realm)
+    response.set_cookie(
+        key="session_id",
+        value=str(token_pair.session_id),
+        httponly=True,
+        secure=False,
+        samesite="lax",
+        max_age=int(SESSION_EXPIRE_IN.total_seconds()),
+    )
+    return token_pair

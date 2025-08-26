@@ -1,7 +1,8 @@
 from dishka.integrations.fastapi import DishkaRoute
 from dishka.integrations.fastapi import FromDishka as Depends
-from fastapi import APIRouter, status
+from fastapi import APIRouter, Response, status
 
+from ....core.constants import SESSION_EXPIRE_IN
 from ....core.domain import TokenPair, VKCallback
 from ....providers.vk import VKProvider
 
@@ -22,9 +23,19 @@ async def vk_generate_url(provider: Depends[VKProvider]) -> str:
 async def vk_registration(
     realm: str,
     schema: VKCallback,
+    response: Response,
     provider: Depends[VKProvider],
 ) -> TokenPair:
-    return await provider.register(callback=schema, realm=realm)
+    token_pair = await provider.register(callback=schema, realm=realm)
+    response.set_cookie(
+        key="session_id",
+        value=str(token_pair.session_id),
+        httponly=True,
+        secure=False,
+        samesite="lax",
+        max_age=int(SESSION_EXPIRE_IN.total_seconds()),
+    )
+    return token_pair
 
 
 @vk_router.post(
@@ -36,6 +47,16 @@ async def vk_registration(
 async def vk_authentication(
     realm: str,
     schema: VKCallback,
+    response: Response,
     provider: Depends[VKProvider],
 ) -> TokenPair:
-    return await provider.authenticate(callback=schema, realm=realm)
+    token_pair = await provider.authenticate(callback=schema, realm=realm)
+    response.set_cookie(
+        key="session_id",
+        value=str(token_pair.session_id),
+        httponly=True,
+        secure=False,
+        samesite="lax",
+        max_age=int(SESSION_EXPIRE_IN.total_seconds()),
+    )
+    return token_pair
