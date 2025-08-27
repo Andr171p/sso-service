@@ -1,12 +1,10 @@
 from datetime import timedelta
 
-from ..settings import settings
 from .enums import Role
 
 PATH_ENDPOINT = "/api/v1"
 MIN_STATUS_CODE = 100
 GOOD_STATUS_CODE = 200
-BYTES_SECRET_KEY_HASH = bytes(settings.secret_settings.secret_key_hash, "utf-8")
 
 PATH_VK = "https://id.vk.com/"
 PATH_YANDEX = "https://oauth.yandex.ru/"
