@@ -28,8 +28,9 @@ async def lifespan(_: FastAPI) -> AsyncIterator[None]: ...
 def create_fastapi_app() -> FastAPI:
     app = FastAPI()
     app.include_router(router)
-    setup_dishka(container=container, app=app)
+    setup_middleware(app)
     setup_errors_handlers(app)
+    setup_dishka(container=container, app=app)
     return app
 
 

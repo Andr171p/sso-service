@@ -41,7 +41,7 @@ class CreatedClient(BaseModel):
     description: str | None = None
     enabled: bool = True
     client_id: str
-    client_secret: str
+    client_secret: SecretStr
     client_type: ClientType
     grant_types: list[GrantType]
     scopes: list[str]

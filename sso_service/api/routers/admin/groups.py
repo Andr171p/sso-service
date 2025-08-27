@@ -1,15 +1,32 @@
+from typing import Annotated
+
 from uuid import UUID
 
 from dishka.integrations.fastapi import DishkaRoute
 from dishka.integrations.fastapi import FromDishka as Depends
-from fastapi import APIRouter, HTTPException, status
+from fastapi import APIRouter, HTTPException, Query, status
 
+from sso_service.core.constants import MIN_LIMIT, MIN_PAGE
 from sso_service.core.domain import Group
 from sso_service.database.repository import GroupRepository
 
 from ...schemas import GroupUpdate
 
 groups_router = APIRouter(prefix="/groups", tags=["Groups"], route_class=DishkaRoute)
+
+
+@groups_router.get(
+    path="/",
+    status_code=status.HTTP_200_OK,
+    response_model=list[Group],
+    summary="Получает все группы"
+)
+async def get_groups(
+        limit: Annotated[int, Query(..., ge=MIN_LIMIT)],
+        page: Annotated[int, Query(..., ge=MIN_PAGE)],
+        repository: Depends[GroupRepository]
+) -> list[Group]:
+    return await repository.read_all(limit, page)
 
 
 @groups_router.post(

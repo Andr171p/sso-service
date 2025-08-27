@@ -36,8 +36,8 @@ async def create_provider(
     summary="Получает все провайдеры аутентификации"
 )
 async def get_providers(
-        limit: Annotated[int, Query(..., gt=MIN_LIMIT)],
-        page: Annotated[int, Query(..., gt=MIN_PAGE)],
+        limit: Annotated[int, Query(..., ge=MIN_LIMIT)],
+        page: Annotated[int, Query(..., ge=MIN_PAGE)],
         repository: Depends[IdentityProviderRepository]
 ) -> list[IdentityProvider]:
     return await repository.read_all(limit, page)

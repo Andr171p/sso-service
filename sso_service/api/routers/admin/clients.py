@@ -42,10 +42,10 @@ async def get_client(
         id: UUID, repository: Depends[ClientRepository]  # noqa: A002
 ) -> CreatedClient:
     client = await repository.read(id)
-    if not client:
+    if client is None:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND, detail="Client not found"
-        ) from None
+        )
     return CreatedClient.model_validate(client)
 
 
