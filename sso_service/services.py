@@ -16,6 +16,7 @@ from .core.domain import ClientClaims, Session, TokenPair, UserClaims
 from .core.enums import Role, TokenType, UserStatus
 from .core.exceptions import (
     InvalidTokenError,
+    NotEnabledError,
     PermissionDeniedError,
     UnauthorizedError,
 )
@@ -89,12 +90,12 @@ class ClientTokenService:
             raise ValueError("Realm is required")
         try:
             payload = decode_token(token)
+        except NotEnabledError:
+            return ClientClaims(active=False, cause="Token expired")
         except InvalidTokenError:
             raise UnauthorizedError("Invalid token") from None
         if payload.get("realm") is None or payload.get("realm") != realm:
             raise UnauthorizedError("Invalid token in this realm")
-        if "exp" in payload and payload["exp"] < current_timestamp():
-            return ClientClaims(active=False, cause="Token expired")
         return ClientClaims(active=True, **payload)
 
 
@@ -126,12 +127,12 @@ class UserTokenService:
             raise UnauthorizedError("Session not found")
         try:
             payload = decode_token(token)
+        except NotEnabledError:
+            return UserClaims(active=False, cause="Token expired")
         except InvalidTokenError:
             raise UnauthorizedError("Invalid token") from None
         if "realm" not in payload or payload.get("realm") != realm:
             return UserClaims(active=False, cause="Invalid token in this realm")
-        if "exp" in payload and payload["exp"] < current_timestamp():
-            return UserClaims(active=False, cause="Token expired")
         return UserClaims(**{"active": True, **payload})
 
     async def refresh(self, token: str, realm: str, session_id: UUID) -> TokenPair:

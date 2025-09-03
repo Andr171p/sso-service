@@ -9,7 +9,7 @@ from passlib.context import CryptContext
 
 from .core.constants import MEMORY_COST, PARALLELISM, ROUNDS, SALT_SIZE, TIME_COST
 from .core.enums import TokenType
-from .core.exceptions import InvalidTokenError
+from .core.exceptions import InvalidTokenError, NotEnabledError
 from .core.utils import current_datetime
 from .settings import settings
 
@@ -78,5 +78,7 @@ def decode_token(token: str) -> dict[str, Any]:
             algorithms=[settings.jwt.algorithm],
             options={"verify_aud": False}
         )
+    except jwt.ExpiredSignatureError:
+        raise NotEnabledError("Token expired!") from None
     except jwt.PyJWTError:
-        raise InvalidTokenError("Invalid token") from None
+        raise InvalidTokenError("Invalid token!") from None
