@@ -13,6 +13,10 @@ from sqlalchemy.ext.asyncio import (
 )
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
 
+from ..settings import settings
+
+engine = create_async_engine(url=settings.postgres.sqlalchemy_url, echo=True)
+
 StrNullable = Annotated[str | None, mapped_column(nullable=True)]
 StringArray = Annotated[list[str], mapped_column(ARRAY(String))]
 StrUnique = Annotated[str, mapped_column(unique=True)]
@@ -37,8 +41,12 @@ class Base(AsyncAttrs, DeclarativeBase):
     )
 
 
-def create_sessionmaker(sqlalchemy_url: str) -> async_sessionmaker[AsyncSession]:
-    engine = create_async_engine(url=sqlalchemy_url, echo=True)
+def create_sessionmaker() -> async_sessionmaker[AsyncSession]:
     return async_sessionmaker(
         engine, class_=AsyncSession, autoflush=False, expire_on_commit=False
     )
+
+
+async def create_tables() -> None:
+    async with engine.begin() as connection:
+        await connection.run_sync(Base.metadata.create_all)

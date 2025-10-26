@@ -1,5 +1,5 @@
 import logging
-from collections.abc import AsyncIterator
+from collections.abc import AsyncGenerator
 from contextlib import asynccontextmanager
 
 from dishka.integrations.fastapi import setup_dishka
@@ -16,6 +16,7 @@ from ..core.exceptions import (
     UnauthorizedError,
     UpdateError,
 )
+from ..database.base import create_tables
 from ..dependencies import container
 from .routers import router
 
@@ -23,11 +24,13 @@ logger = logging.getLogger(__name__)
 
 
 @asynccontextmanager
-async def lifespan(_: FastAPI) -> AsyncIterator[None]: ...
+async def lifespan(_: FastAPI) -> AsyncGenerator[None]:
+    await create_tables()
+    yield
 
 
 def create_fastapi_app() -> FastAPI:
-    app = FastAPI()
+    app = FastAPI(lifespan=lifespan)
     app.include_router(router)
     setup_middleware(app)
     setup_errors_handlers(app)

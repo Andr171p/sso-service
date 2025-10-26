@@ -33,10 +33,8 @@ class AppProvider(Provider):
         return AsyncRedis.from_url(app_settings.redis.url)
 
     @provide(scope=Scope.APP)
-    def get_sessionmaker(  # noqa: PLR6301
-        self, app_settings: Settings
-    ) -> async_sessionmaker[AsyncSession]:
-        return create_sessionmaker(app_settings.postgres.sqlalchemy_url)
+    def get_sessionmaker(self) -> async_sessionmaker[AsyncSession]:  # noqa: PLR6301
+        return create_sessionmaker()
 
     @provide(scope=Scope.REQUEST)
     async def get_session(  # noqa: PLR6301
