@@ -34,7 +34,7 @@ async def login_user(
     response.set_cookie(
         key="session_id",
         value=str(token_pair.session_id),
-        httponly=True,
+        httponly=False,
         secure=False,  # False только для теста  #TODO
         samesite="lax",
         max_age=int(SESSION_EXPIRE_IN.total_seconds())
@@ -80,7 +80,7 @@ async def refresh_token(
     response.set_cookie(
         key="session_id",
         value=str(token_pair.session_id),
-        httponly=True,
+        httponly=False,
         secure=False,  # False только для теста  #TODO
         samesite="lax",
         max_age=int(SESSION_EXPIRE_IN.total_seconds())

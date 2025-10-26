@@ -44,12 +44,14 @@ class JWTSettings(BaseSettings):
 class RedisSettings(BaseSettings):
     host: str = "localhost"
     port: int = 6379
+    user: str = "redis"
+    password: str = "<PASSWORD>"
 
     model_config = SettingsConfigDict(env_prefix="REDIS_")
 
     @property
     def url(self) -> str:
-        return f"redis://{self.host}:{self.port}/0"
+        return f"redis://{self.user}:{self.password}{self.host}:{self.port}/0"
 
 
 class PostgresSettings(BaseSettings):
