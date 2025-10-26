@@ -38,7 +38,7 @@ def create_fastapi_app() -> FastAPI:
 def setup_middleware(app: FastAPI) -> None:
     app.add_middleware(
         CORSMiddleware,
-        allow_origins=["http://localhost:3000", "https://yourdomain.com"],
+        allow_origins=["*"],
         allow_credentials=True,
         allow_methods=["*"],
         allow_headers=["*"],
@@ -86,8 +86,7 @@ def setup_errors_handlers(app: FastAPI) -> None:
     ) -> JSONResponse:
         logger.error(exc)
         return JSONResponse(
-            status_code=status.HTTP_409_CONFLICT,
-            content={"detail": "Resource already exists"}
+            status_code=status.HTTP_409_CONFLICT, content={"detail": "Resource already exists"}
         )
 
     @app.exception_handler(DeletionError)
@@ -98,7 +97,7 @@ def setup_errors_handlers(app: FastAPI) -> None:
         logger.error(exc)
         return JSONResponse(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            content={"detail": "Error while resource deletion"}
+            content={"detail": "Error while resource deletion"},
         )
 
     @app.exception_handler(InvalidCredentialsError)
@@ -106,15 +105,11 @@ def setup_errors_handlers(app: FastAPI) -> None:
         request: Request,  # noqa: ARG001
         exc: InvalidCredentialsError,
     ) -> JSONResponse:
-        return JSONResponse(
-            status_code=status.HTTP_400_BAD_REQUEST, content={"detail": str(exc)}
-        )
+        return JSONResponse(status_code=status.HTTP_400_BAD_REQUEST, content={"detail": str(exc)})
 
     @app.exception_handler(UnauthorizedError)
     def handle_unauthorized_error(
         request: Request,  # noqa: ARG001
         exc: UnauthorizedError,
     ) -> JSONResponse:
-        return JSONResponse(
-            status_code=status.HTTP_401_UNAUTHORIZED, content={"detail": str(exc)}
-        )
+        return JSONResponse(status_code=status.HTTP_401_UNAUTHORIZED, content={"detail": str(exc)})
