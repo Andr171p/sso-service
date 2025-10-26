@@ -51,7 +51,7 @@ class RedisSettings(BaseSettings):
 
     @property
     def url(self) -> str:
-        return f"redis://{self.user}:{self.password}{self.host}:{self.port}/0"
+        return f"redis://{self.user}:{self.password}@{self.host}:{self.port}/0"
 
 
 class PostgresSettings(BaseSettings):
