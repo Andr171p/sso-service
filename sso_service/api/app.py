@@ -38,7 +38,7 @@ def create_fastapi_app() -> FastAPI:
 def setup_middleware(app: FastAPI) -> None:
     app.add_middleware(
         CORSMiddleware,
-        allow_origins=["*"],
+        allow_origins=["https://frontend-project-1-isjz.onrender.com/"],
         allow_credentials=True,
         allow_methods=["*"],
         allow_headers=["*"],
